@@ -1,3 +1,4 @@
+import CloudinaryUpload from "./CloudinaryUpload";
 import React, { useState, useEffect } from "react";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
