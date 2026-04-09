@@ -1,5 +1,4 @@
-import CloudinaryUpload from "./CloudinaryUpload";
-import React, { useState, useEffect } from "react";
+*import React, { useState, useEffect } from "react";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
   onSnapshot, query, where, writeBatch 
@@ -34,6 +33,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import * as XLSX from 'xlsx';
+import CloudinaryUpload from "./CloudinaryUpload";
 
 function SortableItem({ id, children, disabled }: { id: any; children: React.ReactNode; disabled?: boolean; key?: any }) {
   const {
@@ -74,7 +74,7 @@ interface EntityConfig {
   id: EntityType;
   label: string;
   icon: any;
-  fields?: { name: string; label: string; type: 'text' | 'textarea' | 'number' | 'select' | 'date' | 'time'; options?: string[] }[];
+  fields?: { name: string; label: string; type: 'text' | 'textarea' | 'number' | 'select' | 'date' | 'time' | 'image' | 'images'; options?: string[] }[];
   readOnly?: boolean;
 }
 
@@ -98,7 +98,7 @@ const configs: EntityConfig[] = [
       { name: 'distance', label: 'Distance A/R (KM)', type: 'number' },
       { name: 'paf', label: 'PAF (Ar)', type: 'number' },
       { name: 'description', label: 'Description', type: 'textarea' },
-      { name: 'image', label: 'URL Image', type: 'text' }
+      { name: 'image', label: 'Image', type: 'image' }
     ]
   },
   {
@@ -108,7 +108,7 @@ const configs: EntityConfig[] = [
     fields: [
       { name: 'name', label: 'Nom', type: 'text' },
       { name: 'description', label: 'Description', type: 'textarea' },
-      { name: 'logo', label: 'URL Logo', type: 'text' }
+      { name: 'logo', label: 'Logo', type: 'image' }
     ]
   },
   {
@@ -120,7 +120,7 @@ const configs: EntityConfig[] = [
       { name: 'description', label: 'Description', type: 'textarea' },
       { name: 'price', label: 'Prix (Ar)', type: 'number' },
       { name: 'type', label: 'Catégorie', type: 'select', options: ['Équipement', 'Accessoires', 'Vêtements', 'Moto', 'Pièce'] },
-      { name: 'image', label: 'URL Image', type: 'text' }
+      { name: 'image', label: 'Image', type: 'image' }
     ]
   },
   {
@@ -130,7 +130,7 @@ const configs: EntityConfig[] = [
     fields: [
       { name: 'name', label: 'Nom', type: 'text' },
       { name: 'role', label: 'Rôle', type: 'text' },
-      { name: 'image', label: 'URL Photo', type: 'text' },
+      { name: 'image', label: 'Photo', type: 'image' },
       { name: 'bike', label: 'Moto', type: 'text' },
       { name: 'quote', label: 'Citation', type: 'textarea' }
     ]
@@ -143,7 +143,7 @@ const configs: EntityConfig[] = [
       { name: 'title', label: 'Titre', type: 'text' },
       { name: 'date', label: 'Date', type: 'date' },
       { name: 'description', label: 'Description', type: 'textarea' },
-      { name: 'images', label: 'URLs Images (séparées par des virgules)', type: 'textarea' }
+      { name: 'images', label: 'Images', type: 'images' }
     ]
   },
   {
@@ -563,44 +563,88 @@ export default function AdminDashboard() {
 
                   return (
                     <div key={field.name} className="space-y-2">
-                      <label className="text-xs text-gray-500 uppercase tracking-widest font-mono">{field.label}</label>
-                      {field.type === 'textarea' ? (
-                        <textarea
-                          required={field.name !== 'quote'}
+                      {field.type === 'image' ? (
+                        <CloudinaryUpload
+                          label={field.label}
                           value={formData[field.name] || ''}
-                          onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                          className="w-full bg-black/40 border border-white/10 rounded-xl p-4 focus:border-red-500 outline-none transition-colors min-h-[120px]"
+                          onChange={(url) => setFormData({ ...formData, [field.name]: url })}
                         />
-                      ) : field.type === 'select' ? (
-                        <select
-                          required={field.name === 'memberName' ? formData.type === 'Cotisation' : field.name !== 'memberName'}
-                          value={formData[field.name] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const updates: any = { [field.name]: val };
-                            if (activeTab === 'treasury' && field.name === 'type' && val === 'Cotisation') {
-                              updates.amount = 50000;
-                              updates.description = "Cotisation annuelle";
-                            }
-                            setFormData({ ...formData, ...updates });
-                          }}
-                          className="w-full bg-black/40 border border-white/10 rounded-xl p-4 focus:border-red-500 outline-none transition-colors"
-                        >
-                          <option value="">Sélectionner...</option>
-                          {fieldOptions?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
+                      ) : field.type === 'images' ? (
+                        <div className="space-y-3">
+                          <CloudinaryUpload
+                            label={field.label}
+                            value=""
+                            onChange={() => {}}
+                            multiple={true}
+                            onMultipleChange={(urls) => {
+                              const existing = formData[field.name]
+                                ? formData[field.name].split(',').map((s: string) => s.trim()).filter(Boolean)
+                                : [];
+                              setFormData({ ...formData, [field.name]: [...existing, ...urls].join(', ') });
+                            }}
+                          />
+                          {formData[field.name] && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {formData[field.name].split(',').map((url: string, i: number) => url.trim() && (
+                                <div key={i} className="relative group">
+                                  <img src={url.trim()} className="w-16 h-16 object-cover rounded-lg border border-white/10" alt="" />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const urls = formData[field.name].split(',').map((s: string) => s.trim()).filter((_: string, idx: number) => idx !== i);
+                                      setFormData({ ...formData, [field.name]: urls.join(', ') });
+                                    }}
+                                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <input
-                          required={!isAutoStat}
-                          disabled={isAutoStat}
-                          type={field.type}
-                          placeholder={isAutoStat ? `Automatique: ${bikerCount}` : ""}
-                          value={isAutoStat ? bikerCount : (formData[field.name] || '')}
-                          onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                          className="w-full bg-black/40 border border-white/10 rounded-xl p-4 focus:border-red-500 outline-none transition-colors disabled:opacity-50"
-                        />
+                        <>
+                          <label className="text-xs text-gray-500 uppercase tracking-widest font-mono">{field.label}</label>
+                          {field.type === 'textarea' ? (
+                            <textarea
+                              required={field.name !== 'quote'}
+                              value={formData[field.name] || ''}
+                              onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                              className="w-full bg-black/40 border border-white/10 rounded-xl p-4 focus:border-red-500 outline-none transition-colors min-h-[120px]"
+                            />
+                          ) : field.type === 'select' ? (
+                            <select
+                              required={field.name === 'memberName' ? formData.type === 'Cotisation' : field.name !== 'memberName'}
+                              value={formData[field.name] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updates: any = { [field.name]: val };
+                                if (activeTab === 'treasury' && field.name === 'type' && val === 'Cotisation') {
+                                  updates.amount = 50000;
+                                  updates.description = "Cotisation annuelle";
+                                }
+                                setFormData({ ...formData, ...updates });
+                              }}
+                              className="w-full bg-black/40 border border-white/10 rounded-xl p-4 focus:border-red-500 outline-none transition-colors"
+                            >
+                              <option value="">Sélectionner...</option>
+                              {fieldOptions?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          ) : (
+                            <input
+                              required={!isAutoStat}
+                              disabled={isAutoStat}
+                              type={field.type}
+                              placeholder={isAutoStat ? `Automatique: ${bikerCount}` : ""}
+                              value={isAutoStat ? bikerCount : (formData[field.name] || '')}
+                              onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                              className="w-full bg-black/40 border border-white/10 rounded-xl p-4 focus:border-red-500 outline-none transition-colors disabled:opacity-50"
+                            />
+                          )}
+                          {isAutoStat && <p className="text-[10px] text-red-500/70 font-mono italic">Cette valeur est calculée automatiquement à partir de la liste des Bikers.</p>}
+                        </>
                       )}
-                      {isAutoStat && <p className="text-[10px] text-red-500/70 font-mono italic">Cette valeur est calculée automatiquement à partir de la liste des Bikers.</p>}
                     </div>
                   );
                 })}
