@@ -1,0 +1,167 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email == "radoh410@gmail.com" && request.auth.token.email_verified == true) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidAgenda(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.date is string && data.date.size() > 0 &&
+             data.time is string &&
+             data.location is string &&
+             (!('description' in data) || data.description is string) &&
+             (!('image' in data) || data.image is string) &&
+             (!('distance' in data) || data.distance == "" || data.distance is number) &&
+             (!('paf' in data) || data.paf == "" || data.paf is number) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidPartner(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.logo is string &&
+             (!('description' in data) || data.description is string) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidShop(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.price is string &&
+             data.type in ['Équipement', 'Accessoires', 'Vêtements', 'Moto', 'Pièce'] &&
+             (!('description' in data) || data.description is string) &&
+             (!('image' in data) || data.image is string);
+    }
+
+    function isValidBiker(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.role is string &&
+             (!('image' in data) || data.image is string) &&
+             (!('bike' in data) || data.bike is string) &&
+             (!('quote' in data) || data.quote is string) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidEvent(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.date is string &&
+             (!('description' in data) || data.description is string) &&
+             (!('images' in data) || data.images is list);
+    }
+
+    function isValidStat(data) {
+      return data.label is string && data.label.size() > 0 && data.label.size() < 100 &&
+             data.value is string &&
+             (!('suffix' in data) || data.suffix is string);
+    }
+
+    function isValidRegistration(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.bike is string && data.bike.size() > 0 &&
+             data.contact is string && data.contact.size() > 0 &&
+             data.eventTitle is string &&
+             data.eventId is string &&
+             data.createdAt is string &&
+             data.status in ['new', 'read'];
+    }
+
+    function isValidOrder(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.contact is string && data.contact.size() > 0 &&
+             data.productName is string &&
+             data.productId is string &&
+             data.createdAt is string &&
+             data.status in ['new', 'read'];
+    }
+
+    function isValidTreasury(data) {
+      return data.type in ['Cotisation', 'Entrée', 'Sortie'] &&
+             data.amount is number &&
+             data.description is string &&
+             data.date is string &&
+             (!('memberName' in data) || data.memberName is string) &&
+             (!('memberId' in data) || data.memberId is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /agenda/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidAgenda(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /shop/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidShop(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /bikers/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidBiker(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /events/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidEvent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /partners/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidPartner(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /stats/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidStat(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /registrations/{id} {
+      allow read: if isAdmin();
+      allow create: if isValidRegistration(request.resource.data);
+      allow update: if isAdmin() && isValidRegistration(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{id} {
+      allow read: if isAdmin();
+      allow create: if isValidOrder(request.resource.data);
+      allow update: if isAdmin() && isValidOrder(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /treasury/{id} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidTreasury(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}

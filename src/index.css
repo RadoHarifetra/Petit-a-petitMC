@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Anton&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", sans-serif;
+  --font-mono: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-red-500: #ff0000;
+  --color-red-600: #cc0000;
+  --color-ink: #0a0a0a;
+  --color-paper: #f5f5f4;
+}
+
+@layer base {
+  body {
+    @apply bg-[#050505] text-white antialiased selection:bg-red-500 selection:text-white font-sans;
+  }
+}
+
+.glass {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-red-800;
+}
+
+/* Brutalist Borders */
+.brutal-border {
+  @apply border border-white/10 hover:border-red-500/50 transition-colors duration-300;
+}
+
+/* Editorial Typography */
+.hero-title {
+  @apply font-display text-[10vw] md:text-[6vw] leading-[0.85] tracking-tighter uppercase;
+}
+
+.editorial-title {
+  @apply font-display text-[12vw] md:text-[8vw] leading-[0.85] tracking-tighter uppercase;
+}
+
+.section-title {
+  @apply font-display text-5xl md:text-7xl uppercase tracking-tighter leading-[0.9];
+}
+
+.card-title {
+  @apply font-display text-3xl uppercase tracking-tighter leading-none;
+}
+
+.body-text {
+  @apply text-lg font-light leading-relaxed text-gray-400 font-sans;
+}
+
+.micro-label {
+  @apply font-sans text-[10px] uppercase tracking-[0.3em] text-gray-500;
+}
+
+/* Skewed Elements */
+.skew-x-brutal {
+  transform: skewX(-10deg);
+}
+
+@keyframes slamIn {
+  0% { transform: scale(1.5) translateY(-50px) skewX(-10deg); opacity: 0; }
+  100% { transform: scale(1) translateY(0) skewX(-10deg); opacity: 1; }
+}
+
+.animate-slam {
+  animation: slamIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

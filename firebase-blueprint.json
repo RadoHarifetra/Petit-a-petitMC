@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "agenda": {
+      "title": "Agenda",
+      "description": "Sorties à moto prévues",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Titre de la sortie" },
+        "date": { "type": "string", "description": "Date de la sortie" },
+        "time": { "type": "string", "description": "Heure du rendez-vous" },
+        "location": { "type": "string", "description": "Lieu de rendez-vous" },
+        "description": { "type": "string", "description": "Description détaillée" },
+        "image": { "type": "string", "description": "URL de l'image" },
+        "distance": { "type": "number", "description": "Distance Aller-Retour en KM (optionnel)" },
+        "paf": { "type": "string", "description": "Participation Aux Frais (optionnel)" }
+      },
+      "required": ["title", "date", "time", "location"]
+    },
+    "partners": {
+      "title": "Partenaires",
+      "description": "Partenaires du club",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nom du partenaire" },
+        "description": { "type": "string", "description": "Courte description" },
+        "logo": { "type": "string", "description": "URL du logo" },
+        "order": { "type": "number", "description": "Ordre d'affichage" }
+      },
+      "required": ["name", "logo"]
+    },
+    "shop": {
+      "title": "Boutique",
+      "description": "Articles en vente dans la boutique",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nom de l'article" },
+        "description": { "type": "string", "description": "Description de l'article" },
+        "price": { "type": "string", "description": "Prix de l'article" },
+        "type": { "type": "string", "enum": ["Équipement", "Accessoires", "Vêtements", "Moto", "Pièce"], "description": "Catégorie de l'article" },
+        "image": { "type": "string", "description": "URL de l'image" }
+      },
+      "required": ["name", "price", "type"]
+    },
+    "bikers": {
+      "title": "Bikers",
+      "description": "Membres du club",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nom du membre" },
+        "role": { "type": "string", "description": "Rôle dans le club" },
+        "order": { "type": "number", "description": "Ordre d'affichage (1 = haut)" },
+        "image": { "type": "string", "description": "URL de la photo" },
+        "bike": { "type": "string", "description": "Modèle de moto" },
+        "quote": { "type": "string", "description": "Citation du membre" }
+      },
+      "required": ["name", "role", "image"]
+    },
+    "events": {
+      "title": "Événements Passés",
+      "description": "Photos et détails des événements passés",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Titre de l'événement" },
+        "date": { "type": "string", "description": "Date de l'événement" },
+        "description": { "type": "string", "description": "Description de l'événement" },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "Liste d'URLs d'images" }
+      },
+      "required": ["title", "date"]
+    },
+    "stats": {
+      "title": "Statistiques",
+      "description": "Statistiques affichées sur la page d'accueil",
+      "type": "object",
+      "properties": {
+        "label": { "type": "string", "description": "Libellé de la statistique" },
+        "value": { "type": "string", "description": "Valeur de la statistique" },
+        "suffix": { "type": "string", "description": "Suffixe (ex: +, km)" }
+      },
+      "required": ["label", "value"]
+    },
+    "registrations": {
+      "title": "Inscriptions",
+      "description": "Inscriptions aux sorties",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "bike": { "type": "string" },
+        "contact": { "type": "string" },
+        "eventTitle": { "type": "string" },
+        "eventId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["new", "read"] }
+      },
+      "required": ["name", "bike", "contact", "eventTitle", "eventId"]
+    },
+    "orders": {
+      "title": "Commandes",
+      "description": "Commandes de la boutique",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "productName": { "type": "string" },
+        "productId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["new", "read"] }
+      },
+      "required": ["name", "contact", "productName", "productId"]
+    },
+    "treasury": {
+      "title": "Trésorerie",
+      "description": "Gestion des finances du club",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["Cotisation", "Entrée", "Sortie"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "memberName": { "type": "string" },
+        "memberId": { "type": "string" }
+      },
+      "required": ["type", "amount", "description", "date"]
+    }
+  },
+  "firestore": {
+    "/agenda": { "schema": "agenda", "description": "Collection des sorties" },
+    "/shop": { "schema": "shop", "description": "Collection des articles de la boutique" },
+    "/bikers": { "schema": "bikers", "description": "Collection des membres" },
+    "/events": { "schema": "events", "description": "Collection des événements passés" },
+    "/partners": { "schema": "partners", "description": "Collection des partenaires" },
+    "/stats": { "schema": "stats", "description": "Collection des statistiques" },
+    "/registrations": { "schema": "registrations", "description": "Inscriptions aux sorties" },
+    "/orders": { "schema": "orders", "description": "Commandes de la boutique" },
+    "/treasury": { "schema": "treasury", "description": "Transactions financières" }
+  }
+}
