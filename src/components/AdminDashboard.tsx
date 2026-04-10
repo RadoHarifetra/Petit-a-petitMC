@@ -591,10 +591,12 @@ export default function AdminDashboard() {
                             onChange={() => {}}
                             multiple={true}
                             onMultipleChange={(urls) => {
-                              const existing = formData[field.name]
-                                ? formData[field.name].split(',').map((s: string) => s.trim()).filter(Boolean)
-                                : [];
-                              setFormData({ ...formData, [field.name]: [...existing, ...urls].join(', ') });
+                              setFormData((prev: any) => {
+                                const existing = prev[field.name]
+                                  ? prev[field.name].split(',').map((s: string) => s.trim()).filter(Boolean)
+                                  : [];
+                                return { ...prev, [field.name]: [...existing, ...urls].join(', ') };
+                              });
                             }}
                           />
                           {formData[field.name] && (

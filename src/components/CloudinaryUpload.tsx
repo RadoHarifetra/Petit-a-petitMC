@@ -17,7 +17,7 @@ declare global {
 }
 
 export default function CloudinaryUpload({ value, onChange, label = "Image", multiple = false, onMultipleChange }: Props) {
-  // Accumulateur des URLs pendant une session d'upload multiple
+  // Accumule toutes les URLs uploadées pendant une session
   const collectedUrls = useRef<string[]>([]);
 
   useEffect(() => {
@@ -48,17 +48,17 @@ export default function CloudinaryUpload({ value, onChange, label = "Image", mul
         if (result.event === "success") {
           const url = result.info.secure_url;
           if (multiple) {
-            // Accumuler chaque URL au fur et à mesure
-            collectedUrls.current = [...collectedUrls.current, url];
+            // Accumuler chaque URL au fil des uploads
+            collectedUrls.current.push(url);
           } else {
             onChange(url);
           }
         }
 
+        // queues-end = toutes les images ont fini d'uploader
         if (result.event === "queues-end" && multiple && onMultipleChange) {
-          // Envoyer toutes les URLs accumulées en une seule fois
           if (collectedUrls.current.length > 0) {
-            onMultipleChange(collectedUrls.current);
+            onMultipleChange([...collectedUrls.current]);
             collectedUrls.current = [];
           }
         }
