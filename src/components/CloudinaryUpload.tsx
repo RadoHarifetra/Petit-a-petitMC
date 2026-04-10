@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Upload } from "lucide-react";
 
 interface Props {
@@ -17,6 +17,9 @@ declare global {
 }
 
 export default function CloudinaryUpload({ value, onChange, label = "Image", multiple = false, onMultipleChange }: Props) {
+  // Accumulateur des URLs pendant une session d'upload multiple
+  const collectedUrls = useRef<string[]>([]);
+
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://upload-widget.cloudinary.com/global/all.js";
@@ -26,6 +29,9 @@ export default function CloudinaryUpload({ value, onChange, label = "Image", mul
   }, []);
 
   const openWidget = () => {
+    // Réinitialiser l'accumulateur à chaque ouverture du widget
+    collectedUrls.current = [];
+
     window.cloudinary.openUploadWidget(
       {
         cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
@@ -37,16 +43,24 @@ export default function CloudinaryUpload({ value, onChange, label = "Image", mul
         language: "fr",
       },
       (error: any, result: any) => {
-        if (!error && result.event === "success") {
+        if (error) return;
+
+        if (result.event === "success") {
           const url = result.info.secure_url;
-          if (multiple && onMultipleChange) {
-            onMultipleChange([url]);
+          if (multiple) {
+            // Accumuler chaque URL au fur et à mesure
+            collectedUrls.current = [...collectedUrls.current, url];
           } else {
             onChange(url);
           }
         }
-        if (!error && result.event === "queues-end" && multiple && onMultipleChange) {
-          // handled per upload above
+
+        if (result.event === "queues-end" && multiple && onMultipleChange) {
+          // Envoyer toutes les URLs accumulées en une seule fois
+          if (collectedUrls.current.length > 0) {
+            onMultipleChange(collectedUrls.current);
+            collectedUrls.current = [];
+          }
         }
       }
     );
@@ -65,7 +79,7 @@ export default function CloudinaryUpload({ value, onChange, label = "Image", mul
           className="flex items-center gap-3 px-5 py-3 bg-white/5 border border-white/10 hover:border-red-500 rounded-xl transition-all text-sm font-mono text-gray-400 hover:text-white w-fit"
         >
           <Upload className="w-4 h-4" />
-          {value && !multiple ? "Changer l'image" : "Uploader une image"}
+          {value && !multiple ? "Changer l'image" : multiple ? "Uploader les images" : "Uploader une image"}
         </button>
         {value && !multiple && (
           <p className="text-[10px] text-gray-600 font-mono truncate max-w-xs">{value}</p>
