@@ -99,6 +99,25 @@ service cloud.firestore {
              (!('memberId' in data) || data.memberId is string);
     }
 
+    function isValidSurvey(data) {
+      return data.eventId is string &&
+             data.eventTitle is string &&
+             data.satisfaction is number && data.satisfaction >= 1 && data.satisfaction <= 5 &&
+             data.organization in ['Très bonne', 'Bonne', 'Moyenne', 'À améliorer'] &&
+             data.route in ['Excellent', 'Bon', 'Moyen', 'Mauvais'] &&
+             (!('routeWhy' in data) || data.routeWhy is string) &&
+             data.ambiance in ['Excellente', 'Bonne', 'Correcte', 'À améliorer'] &&
+             data.security in ['Toujours', 'La plupart du temps', 'Pas vraiment'] &&
+             (!('securityComment' in data) || data.securityComment is string) &&
+             data.logistics in ['Très satisfait', 'Satisfait', 'Peu satisfait', 'Insatisfait'] &&
+             data.improvements is string &&
+             data.return in ['Oui', 'Peut-être', 'Non'] &&
+             data.respondentName is string && data.respondentName.size() > 0 &&
+             data.isMember in ['Oui', 'Non'] &&
+             (!('experience' in data) || data.experience == "" || data.experience in ['Première fois', 'Moins de 1 an', '1 à 3 ans', 'Plus de 3 ans']) &&
+             data.createdAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -157,6 +176,12 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && isValidTreasury(request.resource.data);
       allow delete: if isAdmin();
+    }
+
+    match /surveys/{id} {
+      allow read: if isAdmin();
+      allow create: if isValidSurvey(request.resource.data);
+      allow update, delete: if isAdmin();
     }
 
     match /users/{userId} {

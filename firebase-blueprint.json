@@ -120,6 +120,30 @@
         "memberId": { "type": "string" }
       },
       "required": ["type", "amount", "description", "date"]
+    },
+    "surveys": {
+      "title": "Sondages",
+      "description": "Réponses aux sondages des événements passés",
+      "type": "object",
+      "properties": {
+        "eventId": { "type": "string", "description": "ID de l'événement" },
+        "eventTitle": { "type": "string", "description": "Titre de l'événement" },
+        "satisfaction": { "type": "number", "description": "Satisfaction globale (1-5)" },
+        "organization": { "type": "string", "description": "Organisation" },
+        "route": { "type": "string", "description": "Parcours / itinéraire" },
+        "routeWhy": { "type": "string", "description": "Pourquoi (parcours)" },
+        "ambiance": { "type": "string", "description": "Ambiance du groupe" },
+        "security": { "type": "string", "description": "Sécurité" },
+        "securityComment": { "type": "string", "description": "Commentaire sécurité" },
+        "logistics": { "type": "string", "description": "Logistique" },
+        "improvements": { "type": "string", "description": "Améliorations" },
+        "return": { "type": "string", "description": "Reviendrais-tu ?" },
+        "respondentName": { "type": "string", "description": "Nom ou pseudo" },
+        "isMember": { "type": "string", "enum": ["Oui", "Non"], "description": "Est membre ?" },
+        "experience": { "type": "string", "enum": ["Première fois", "Moins de 1 an", "1 à 3 ans", "Plus de 3 ans"], "description": "Ancienneté" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["eventId", "satisfaction", "organization", "route", "ambiance", "security", "logistics", "improvements", "return", "respondentName", "isMember"]
     }
   },
   "firestore": {
@@ -131,6 +155,7 @@
     "/stats": { "schema": "stats", "description": "Collection des statistiques" },
     "/registrations": { "schema": "registrations", "description": "Inscriptions aux sorties" },
     "/orders": { "schema": "orders", "description": "Commandes de la boutique" },
-    "/treasury": { "schema": "treasury", "description": "Transactions financières" }
+    "/treasury": { "schema": "treasury", "description": "Transactions financières" },
+    "/surveys": { "schema": "surveys", "description": "Réponses aux sondages" }
   }
 }
