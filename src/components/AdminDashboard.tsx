@@ -9,7 +9,8 @@ import {
   Plus, Trash2, Edit2, X, Save, ChevronRight, LayoutDashboard, 
   Calendar, ShoppingBag, Users, Image as ImageIcon, BarChart3, 
   ArrowLeft, Bell, Check, Phone, Bike, Package, Wallet,
-  GripVertical, ArrowUpRight, ArrowDownRight, Handshake
+  GripVertical, ArrowUpRight, ArrowDownRight, Handshake,
+  ClipboardList, Star, MessageSquare
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
@@ -34,6 +35,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import * as XLSX from 'xlsx';
 import CloudinaryUpload from "./CloudinaryUpload";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
+} from 'recharts';
 
 function SortableItem({ id, children, disabled }: { id: any; children: React.ReactNode; disabled?: boolean; key?: any }) {
   const {
@@ -68,7 +73,7 @@ function SortableItem({ id, children, disabled }: { id: any; children: React.Rea
   );
 }
 
-type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners';
+type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys';
 
 interface EntityConfig {
   id: EntityType;
@@ -178,6 +183,12 @@ const configs: EntityConfig[] = [
       { name: 'date', label: 'Date', type: 'date' },
       { name: 'memberName', label: 'Membre (si Cotisation)', type: 'select', options: [] } // Options will be filled dynamically
     ]
+  },
+  {
+    id: 'surveys',
+    label: 'Sondages',
+    icon: ClipboardList,
+    readOnly: true
   }
 ];
 
@@ -297,6 +308,9 @@ export default function AdminDashboard() {
       }
       if (activeTab === 'treasury') {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
+      }
+      if (activeTab === 'surveys') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
       if (activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners') {
         return (Number(a.order) || 999) - (Number(b.order) || 999);
@@ -666,6 +680,185 @@ export default function AdminDashboard() {
 
             {/* List */}
             <div className="space-y-8">
+              {activeTab === 'surveys' && items.length > 0 && (
+                <div className="space-y-8">
+                  {/* General Stats Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-6 glass rounded-2xl border-white/10">
+                      <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Total Réponses</p>
+                      <p className="text-3xl font-display text-white">{items.length}</p>
+                    </div>
+                    <div className="p-6 glass rounded-2xl border-white/10">
+                      <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Note Moyenne</p>
+                      <p className="text-3xl font-display text-red-500">
+                        {(items.reduce((acc, curr) => acc + (curr.satisfaction || 0), 0) / items.length).toFixed(1)}
+                        <span className="text-sm ml-1">★</span>
+                      </p>
+                    </div>
+                    <div className="p-6 glass rounded-2xl border-white/10">
+                      <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Taux de Membres</p>
+                      <p className="text-3xl font-display text-white">
+                        {Math.round((items.filter(i => i.isMember === 'Oui').length / items.length) * 100)}%
+                      </p>
+                    </div>
+                    <div className="p-6 glass rounded-2xl border-white/10">
+                      <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Nouveaux</p>
+                      <p className="text-3xl font-display text-white">
+                        {Math.round((items.filter(i => i.experience === 'Première fois').length / items.length) * 100)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Satisfaction Chart */}
+                    <div className="p-8 glass rounded-3xl border-white/10">
+                      <h4 className="text-sm font-mono uppercase tracking-widest text-gray-500 mb-8">Satisfaction Globale</h4>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={(() => {
+                            const counts = [0, 0, 0, 0, 0];
+                            items.forEach(i => { if (i.satisfaction) counts[i.satisfaction - 1]++; });
+                            return counts.map((count, i) => ({ name: `${i + 1} ★`, count }));
+                          })()}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                            <XAxis dataKey="name" stroke="#666" fontSize={12} />
+                            <YAxis stroke="#666" fontSize={12} allowDecimals={false} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px' }}
+                              itemStyle={{ color: '#ef4444' }}
+                            />
+                            <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Return Chart */}
+                    <div className="p-8 glass rounded-3xl border-white/10">
+                      <h4 className="text-sm font-mono uppercase tracking-widest text-gray-500 mb-8">Reviendrais-tu ?</h4>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={(() => {
+                                const counts: any = { 'Oui': 0, 'Peut-être': 0, 'Non': 0 };
+                                items.forEach(i => { if (i.return) counts[i.return]++; });
+                                return Object.entries(counts).map(([name, value]) => ({ name, value }));
+                              })()}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              <Cell fill="#22c55e" />
+                              <Cell fill="#eab308" />
+                              <Cell fill="#ef4444" />
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px' }}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Member vs Visitor Chart */}
+                    <div className="p-8 glass rounded-3xl border-white/10">
+                      <h4 className="text-sm font-mono uppercase tracking-widest text-gray-500 mb-8">Profil des répondants</h4>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={(() => {
+                                const counts: any = { 'Membres': 0, 'Visiteurs': 0 };
+                                items.forEach(i => { 
+                                  if (i.isMember === 'Oui') counts['Membres']++;
+                                  else counts['Visiteurs']++;
+                                });
+                                return Object.entries(counts).map(([name, value]) => ({ name, value }));
+                              })()}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              <Cell fill="#ef4444" />
+                              <Cell fill="#3b82f6" />
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px' }}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Experience Chart */}
+                    <div className="p-8 glass rounded-3xl border-white/10">
+                      <h4 className="text-sm font-mono uppercase tracking-widest text-gray-500 mb-8">Ancienneté</h4>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart layout="vertical" data={(() => {
+                            const counts: any = { 'Première fois': 0, 'Moins de 1 an': 0, '1 à 3 ans': 0, 'Plus de 3 ans': 0 };
+                            items.forEach(i => { if (i.experience) counts[i.experience]++; });
+                            return Object.entries(counts).map(([name, count]) => ({ name, count }));
+                          })()}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                            <XAxis type="number" stroke="#666" fontSize={12} hide />
+                            <YAxis dataKey="name" type="category" stroke="#666" fontSize={10} width={80} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px' }}
+                            />
+                            <Bar dataKey="count" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {['organization', 'route', 'ambiance'].map((key) => (
+                      <div key={key} className="p-6 glass rounded-2xl border-white/10">
+                        <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-4">
+                          {key === 'organization' ? 'Organisation' : key === 'route' ? 'Parcours' : 'Ambiance'}
+                        </h4>
+                        <div className="space-y-3">
+                          {(() => {
+                            const counts: any = {};
+                            items.forEach(i => { if (i[key]) counts[i[key]] = (counts[i[key]] || 0) + 1; });
+                            const total = items.length;
+                            return Object.entries(counts)
+                              .sort((a: any, b: any) => b[1] - a[1])
+                              .map(([name, count]: any) => (
+                                <div key={name} className="space-y-1">
+                                  <div className="flex justify-between text-[10px] font-mono">
+                                    <span className="text-gray-400">{name}</span>
+                                    <span className="text-white">{Math.round((count / total) * 100)}%</span>
+                                  </div>
+                                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-red-600" 
+                                      style={{ width: `${(count / total) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              ));
+                          })()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'treasury' && (
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -742,7 +935,7 @@ export default function AdminDashboard() {
 
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold">
-                  {activeTab === 'registrations' ? 'Inscriptions Récentes' : activeTab === 'orders' ? 'Commandes Récentes' : `Liste des ${currentConfig.label}`}
+                  {activeTab === 'registrations' ? 'Inscriptions Récentes' : activeTab === 'orders' ? 'Commandes Récentes' : activeTab === 'surveys' ? 'Retours d\'expérience' : `Liste des ${currentConfig.label}`}
                 </h3>
                 {activeTab === 'registrations' && items.length > 0 && (
                   <button
@@ -776,10 +969,11 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-6">
                       {item.image || item.logo ? (
                         <img src={item.image || item.logo} className="w-16 h-16 rounded-xl object-cover" alt="" />
-                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury') && (
+                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys') && (
                         <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center">
                           {activeTab === 'registrations' ? <Users className="w-6 h-6 text-red-500" /> : 
                            activeTab === 'orders' ? <ShoppingBag className="w-6 h-6 text-red-500" /> :
+                           activeTab === 'surveys' ? <Star className="w-6 h-6 text-red-500" /> :
                            (item.type === 'Entrée' || item.type === 'Cotisation') ? <ArrowUpRight className="w-6 h-6 text-green-500" /> : <ArrowDownRight className="w-6 h-6 text-red-500" />}
                         </div>
                       )}
@@ -824,15 +1018,67 @@ export default function AdminDashboard() {
                               </div>
                             )}
                           </div>
+                        ) : activeTab === 'surveys' ? (
+                          <div className="space-y-3">
+                            <p className="text-sm text-red-500 font-mono uppercase tracking-widest">{item.eventTitle}</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star key={star} className={`w-4 h-4 ${item.satisfaction >= star ? "text-red-500 fill-current" : "text-white/10"}`} />
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded border border-white/10 text-gray-400 font-mono">
+                                  {item.respondentName}
+                                </span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${item.isMember === 'Oui' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-blue-500/10 border-blue-500/20 text-blue-500'}`}>
+                                  {item.isMember === 'Oui' ? 'Membre' : 'Visiteur'}
+                                </span>
+                                {item.experience && (
+                                  <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded border border-white/10 text-gray-500 font-mono">
+                                    {item.experience}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-xs">
+                              <p><span className="text-gray-500">Organisation:</span> <span className="text-white">{item.organization}</span></p>
+                              <p><span className="text-gray-500">Parcours:</span> <span className="text-white">{item.route}</span></p>
+                              <p><span className="text-gray-500">Ambiance:</span> <span className="text-white">{item.ambiance}</span></p>
+                              <p><span className="text-gray-500">Sécurité:</span> <span className="text-white">{item.security}</span></p>
+                              <p><span className="text-gray-500">Logistique:</span> <span className="text-white">{item.logistics}</span></p>
+                              <p><span className="text-gray-500">Reviendrait:</span> <span className="text-white">{item.return}</span></p>
+                            </div>
+                            {item.routeWhy && (
+                              <div className="mt-2 p-3 bg-white/5 rounded-lg border border-white/5">
+                                <p className="text-[10px] text-gray-500 uppercase mb-1 font-mono">Pourquoi (parcours):</p>
+                                <p className="text-xs italic text-gray-300">"{item.routeWhy}"</p>
+                              </div>
+                            )}
+                            {item.securityComment && (
+                              <div className="mt-2 p-3 bg-white/5 rounded-lg border border-white/5">
+                                <p className="text-[10px] text-gray-500 uppercase mb-1 font-mono">Commentaire sécurité:</p>
+                                <p className="text-xs italic text-gray-300">"{item.securityComment}"</p>
+                              </div>
+                            )}
+                            <div className="mt-2 p-3 bg-red-500/5 rounded-lg border border-red-500/10">
+                              <p className="text-[10px] text-red-500 uppercase mb-1 font-mono flex items-center gap-2">
+                                <MessageSquare className="w-3 h-3" /> Améliorations suggérées:
+                              </p>
+                              <p className="text-xs text-white">{item.improvements}</p>
+                            </div>
+                          </div>
                         ) : (
                           <p className="text-sm text-gray-500">
                             {activeTab === 'shop' ? formatMGA(item.price) : activeTab === 'agenda' ? `PAF: ${formatMGA(item.paf)}` : activeTab === 'treasury' ? item.date : String(item.date || item.type || item.role || '')}
                             {activeTab === 'stats' && item.label === 'Membres actifs' && ` (Auto: ${bikerCount})`}
                           </p>
                         )}
-                        {(activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury') && (
+                        {(activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys') && (
                           <p className="text-[10px] text-gray-600 mt-2 font-mono">
-                            {activeTab === 'treasury' ? `Transaction du ${new Date(item.date).toLocaleDateString('fr-FR')}` : `Reçu le ${new Date(item.createdAt).toLocaleString('fr-FR')}`}
+                            {activeTab === 'treasury' ? `Transaction du ${new Date(item.date).toLocaleDateString('fr-FR')}` : 
+                             activeTab === 'surveys' ? `Avis reçu le ${new Date(item.createdAt).toLocaleString('fr-FR')}` :
+                             `Reçu le ${new Date(item.createdAt).toLocaleString('fr-FR')}`}
                           </p>
                         )}
                       </div>

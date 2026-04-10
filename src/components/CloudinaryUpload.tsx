@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useEffect } from "react";
 import { Upload } from "lucide-react";
 
