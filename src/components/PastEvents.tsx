@@ -188,27 +188,27 @@ export default function PastEvents() {
               </AnimatePresence>
               
               {/* Controls */}
-              <div className="absolute inset-0 flex items-center justify-between p-4 md:p-8 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-between p-2 md:p-8 pointer-events-none">
                 <button 
                   onClick={prevImage}
-                  className="p-4 bg-black/50 hover:bg-red-600 text-white transition-all pointer-events-auto brutal-border"
+                  className="p-2 md:p-4 bg-black/50 hover:bg-red-600 text-white transition-all pointer-events-auto brutal-border"
                 >
-                  <ChevronLeft className="w-8 h-8" />
+                  <ChevronLeft className="w-4 h-4 md:w-8 md:h-8" />
                 </button>
                 <button 
                   onClick={nextImage}
-                  className="p-4 bg-black/50 hover:bg-red-600 text-white transition-all pointer-events-auto brutal-border"
+                  className="p-2 md:p-4 bg-black/50 hover:bg-red-600 text-white transition-all pointer-events-auto brutal-border"
                 >
-                  <ChevronRight className="w-8 h-8" />
+                  <ChevronRight className="w-4 h-4 md:w-8 md:h-8" />
                 </button>
               </div>
 
               {/* Close Button */}
               <button 
                 onClick={() => setSelectedEvent(null)}
-                className="absolute top-8 right-8 p-3 bg-white text-black hover:bg-red-600 hover:text-white transition-all z-50 brutal-border"
+                className="absolute top-3 right-3 md:top-8 md:right-8 p-1.5 md:p-3 bg-white text-black hover:bg-red-600 hover:text-white transition-all z-50 brutal-border"
               >
-                <X className="w-8 h-8" />
+                <X className="w-4 h-4 md:w-8 md:h-8" />
               </button>
 
               {/* Info Overlay */}
