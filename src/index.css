@@ -45,7 +45,7 @@
 }
 
 .card-title {
-  @apply font-display text-2xl uppercase leading-none;
+  @apply font-display text-3xl uppercase tracking-tighter leading-none;
 }
 
 .body-text {

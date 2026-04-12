@@ -15,6 +15,7 @@ const formatMGA = (value: any) => {
 };
 
 export default function Shop() {
+  const [isMobile, setIsMobile] = useState(false);
   const [filter, setFilter] = useState("Tous");
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -35,6 +36,10 @@ export default function Shop() {
   ];
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
     const q = query(collection(db, "shop"), orderBy("name", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -43,7 +48,10 @@ export default function Shop() {
       handleFirestoreError(error, OperationType.GET, "shop");
       setIsLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      unsubscribe();
+    };
   }, []);
 
   const handleOrder = async (e: React.FormEvent) => {
@@ -117,13 +125,13 @@ export default function Shop() {
                   <img 
                     src="https://res.cloudinary.com/dipmf3yd2/image/upload/v1773057769/2026-03-09-15-00-32-318.jpg_yipnwu.jpg" 
                     alt="Escorte Prestige 1" 
-                    className="w-full aspect-[3/4] object-cover grayscale"
+                    className={`w-full aspect-[3/4] object-cover ${isMobile ? "grayscale-0" : "grayscale"}`}
                     referrerPolicy="no-referrer"
                   />
                   <img 
                     src="https://res.cloudinary.com/dipmf3yd2/image/upload/v1773057769/2026-03-09-14-59-45-910.jpg_onugka.jpg" 
                     alt="Escorte Prestige 2" 
-                    className="w-full aspect-[3/4] object-cover grayscale mt-12"
+                    className={`w-full aspect-[3/4] object-cover ${isMobile ? "grayscale-0" : "grayscale"} mt-12`}
                     referrerPolicy="no-referrer"
                   />
                 </div>
@@ -166,7 +174,7 @@ export default function Shop() {
                   <img 
                     src="https://res.cloudinary.com/dipmf3yd2/image/upload/v1773057769/2026-03-09-15-00-32-318.jpg_yipnwu.jpg" 
                     alt="Escorte Prestige 1" 
-                    className="w-full aspect-[3/4] object-cover grayscale hover:grayscale-0 transition-all duration-1000"
+                    className={`w-full aspect-[3/4] object-cover ${isMobile ? "grayscale-0" : "grayscale"} hover:grayscale-0 transition-all duration-1000`}
                     referrerPolicy="no-referrer"
                     loading="lazy"
                   />
@@ -175,7 +183,7 @@ export default function Shop() {
                   <img 
                     src="https://res.cloudinary.com/dipmf3yd2/image/upload/v1773057769/2026-03-09-14-59-45-910.jpg_onugka.jpg" 
                     alt="Escorte Prestige 2" 
-                    className="w-full aspect-[3/4] object-cover grayscale hover:grayscale-0 transition-all duration-1000"
+                    className={`w-full aspect-[3/4] object-cover ${isMobile ? "grayscale-0" : "grayscale"} hover:grayscale-0 transition-all duration-1000`}
                     referrerPolicy="no-referrer"
                     loading="lazy"
                   />
@@ -242,7 +250,7 @@ export default function Shop() {
                         <img 
                           src={product.image} 
                           alt={product.name}
-                          className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000"
+                          className={`w-full h-full object-cover ${isMobile ? "grayscale-0" : "grayscale"} group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000`}
                           referrerPolicy="no-referrer"
                           loading="lazy"
                         />

@@ -74,15 +74,18 @@ export default function Bikers() {
                   visible: { opacity: 1, y: 0 },
                   hover: { y: -5 }
                 }}
-                transition={{ delay: i * 0.1 }}
-                viewport={{ once: true }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: "easeOut"
+                }}
+                viewport={{ once: true, margin: "100px" }}
                 className="group relative"
               >
                 <div className="aspect-[3/4] overflow-hidden rounded-2xl mb-6 relative">
                   <motion.img
                     variants={{
-                      hidden: { filter: "grayscale(100%)", scale: 1 },
-                      visible: isMobile ? { filter: "grayscale(0%)", scale: 1 } : { filter: "grayscale(100%)", scale: 1 },
+                      hidden: { filter: isMobile ? "grayscale(0%)" : "grayscale(100%)", scale: 1 },
+                      visible: { filter: isMobile ? "grayscale(0%)" : "grayscale(100%)", scale: 1 },
                       hover: { filter: "grayscale(0%)", scale: 1.1 }
                     }}
                     transition={{ duration: 0.8 }}

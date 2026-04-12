@@ -6,10 +6,15 @@ import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
 export default function Partners() {
+  const [isMobile, setIsMobile] = useState(false);
   const [partners, setPartners] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
     const q = query(collection(db, "partners"), orderBy("order", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPartners(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -18,7 +23,10 @@ export default function Partners() {
       handleFirestoreError(error, OperationType.GET, "partners");
       setIsLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      unsubscribe();
+    };
   }, []);
 
   if (isLoading) {
@@ -47,11 +55,11 @@ export default function Partners() {
               key={partner.id}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+              viewport={{ once: true, margin: "100px" }}
               className="p-10 brutal-border bg-zinc-950/50 group hover:bg-zinc-900 transition-all flex flex-col items-center text-center"
             >
-              <div className="w-32 h-32 mb-8 grayscale group-hover:grayscale-0 transition-all duration-500 relative">
+              <div className={`w-32 h-32 mb-8 ${isMobile ? "grayscale-0" : "grayscale"} group-hover:grayscale-0 transition-all duration-500 relative`}>
                 <div className="absolute inset-0 rounded-full border-2 border-red-600/20 group-hover:border-red-600 transition-colors" />
                 <div className="w-full h-full rounded-full overflow-hidden bg-white/5">
                   <img 
