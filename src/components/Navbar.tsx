@@ -1,12 +1,74 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, Bike, Calendar, ShoppingBag, Users, Image as ImageIcon, Home } from "lucide-react";
+import { Menu, X, Bike, Calendar, ShoppingBag, Users, Image as ImageIcon, Home, LayoutDashboard } from "lucide-react";
 import AdminLogin from "./AdminLogin";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { db, auth } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState({
+    surveys: 0,
+    registrations: 0,
+    orders: 0
+  });
   const location = useLocation();
+
+  useEffect(() => {
+    let unsubSurveys: () => void = () => {};
+    let unsubRegs: () => void = () => {};
+    let unsubOrders: () => void = () => {};
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // Clean up previous listeners
+      unsubSurveys();
+      unsubRegs();
+      unsubOrders();
+
+      if (user) {
+        // Listen for new surveys
+        unsubSurveys = onSnapshot(collection(db, "surveys"), (snapshot) => {
+          const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+          setNotifications(prev => ({ ...prev, surveys: unread }));
+        }, (error) => {
+          // Silently handle permission denied for non-admins
+          if (error.code !== 'permission-denied') {
+            console.error("Survey listener error:", error);
+          }
+        });
+
+        unsubRegs = onSnapshot(query(collection(db, "registrations"), where("status", "==", "new")), (snapshot) => {
+          setNotifications(prev => ({ ...prev, registrations: snapshot.size }));
+        }, (error) => {
+          if (error.code !== 'permission-denied') {
+            console.error("Regs listener error:", error);
+          }
+        });
+
+        unsubOrders = onSnapshot(query(collection(db, "orders"), where("status", "==", "new")), (snapshot) => {
+          setNotifications(prev => ({ ...prev, orders: snapshot.size }));
+        }, (error) => {
+          if (error.code !== 'permission-denied') {
+            console.error("Orders listener error:", error);
+          }
+        });
+      } else {
+        // Reset notifications if logged out
+        setNotifications({ surveys: 0, registrations: 0, orders: 0 });
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubSurveys();
+      unsubRegs();
+      unsubOrders();
+    };
+  }, []);
+
+  const totalNotifications = notifications.surveys + notifications.registrations + notifications.orders;
 
   const navItems = [
     { name: "Home", path: "/", icon: Home },
@@ -50,10 +112,15 @@ export default function Navbar() {
 
         {/* Mobile Toggle */}
         <button 
-          className="lg:hidden p-2 text-white"
+          className="lg:hidden p-2 text-white relative"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? <X /> : <Menu />}
+          {!isMenuOpen && totalNotifications > 0 && (
+            <span className="absolute top-0 right-0 w-4 h-4 bg-red-600 text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-black">
+              {totalNotifications}
+            </span>
+          )}
         </button>
       </div>
 
@@ -81,7 +148,7 @@ export default function Navbar() {
                 </Link>
               ))}
               <div className="pt-6 border-t border-white/10">
-                <AdminLogin />
+                <AdminLogin onAction={() => setIsMenuOpen(false)} />
               </div>
             </div>
           </motion.div>

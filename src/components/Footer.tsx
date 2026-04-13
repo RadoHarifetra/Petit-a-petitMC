@@ -38,7 +38,7 @@ export default function Footer() {
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-red-600 transition-colors">
                     <Mail className="w-5 h-5 text-red-500 group-hover:text-white transition-colors" />
                   </div>
-                  <span className="text-gray-300 hover:text-red-500 transition-colors">petitapetit261@gmail.com</span>
+                  <span className="text-gray-300 hover:text-red-500 transition-colors">mcpetitapetit@gmail.com</span>
                 </li>
                 <li className="flex items-center gap-4 group cursor-pointer">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-red-600 transition-colors">

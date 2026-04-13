@@ -423,6 +423,8 @@ export default function AdminDashboard() {
     });
   }, [bikersList, allTreasury]);
 
+  const formRef = React.useRef<HTMLFormElement>(null);
+
   const startEdit = (item: any) => {
     setIsEditing(item.id);
     const editData = { ...item };
@@ -430,6 +432,11 @@ export default function AdminDashboard() {
       editData.images = editData.images.join(', ');
     }
     setFormData(editData);
+    
+    // Auto scroll to form
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   const currentConfig = configs.find(c => c.id === activeTab)!;
@@ -536,7 +543,7 @@ export default function AdminDashboard() {
             >
               <config.icon className="w-5 h-5" />
               <span className="font-medium">{config.label}</span>
-              {(config.id === 'registrations' || config.id === 'orders') && notifications[config.id] > 0 && (
+              {(config.id === 'registrations' || config.id === 'orders' || config.id === 'surveys') && notifications[config.id] > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-[#050505] animate-pulse">
                   {notifications[config.id]}
                 </span>
@@ -566,7 +573,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6 bg-white/5 p-8 rounded-3xl border border-white/10">
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-6 bg-white/5 p-8 rounded-3xl border border-white/10">
                 {currentConfig.fields?.map((field) => {
                   const isAutoStat = activeTab === 'stats' && field.name === 'value' && formData.label === 'Membres actifs';
                   

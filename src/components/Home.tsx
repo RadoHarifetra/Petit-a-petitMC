@@ -14,6 +14,7 @@ export default function Home() {
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [bikerCount, setBikerCount] = useState(0);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
     // Fetch Biker Count
@@ -27,8 +28,10 @@ export default function Home() {
     const statsQuery = query(collection(db, "stats"), orderBy("label", "asc"));
     const unsubscribeStats = onSnapshot(statsQuery, (snapshot) => {
       setStats(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+      setIsLoadingStats(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "stats");
+      setIsLoadingStats(false);
     });
 
     // Fetch Upcoming Events - Sorted by date ascending (closest first)
@@ -48,6 +51,33 @@ export default function Home() {
     };
   }, []);
 
+  const Counter = ({ value, suffix = "" }: { value: string; suffix?: string }) => {
+    const [count, setCount] = useState(0);
+    const target = parseInt(value.replace(/\D/g, '')) || 0;
+    const isK = value.toLowerCase().includes('k');
+    const displaySuffix = suffix || (isK ? 'k' : '');
+
+    useEffect(() => {
+      let start = 0;
+      const duration = 2000;
+      const increment = target / (duration / 16);
+      
+      const timer = setInterval(() => {
+        start += increment;
+        if (start >= target) {
+          setCount(target);
+          clearInterval(timer);
+        } else {
+          setCount(Math.floor(start));
+        }
+      }, 16);
+      
+      return () => clearInterval(timer);
+    }, [target]);
+
+    return <span>{count}{displaySuffix}</span>;
+  };
+
   return (
     <div>
       <Hero />
@@ -56,17 +86,26 @@ export default function Home() {
       <section className="py-24 border-y border-white/5 bg-zinc-950">
         <div className="container mx-auto px-6 flex justify-center">
           <div className="grid grid-cols-2 md:grid-cols-5 w-full max-w-6xl">
-            {stats.length === 0 ? (
+            {isLoadingStats ? (
+              [1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="p-8 border-r border-white/5 last:border-r-0 text-center animate-pulse">
+                  <div className="h-16 bg-white/5 rounded-xl mb-4" />
+                  <div className="h-4 w-2/3 bg-white/5 rounded mx-auto" />
+                </div>
+              ))
+            ) : stats.length === 0 ? (
             // Fallback stats if none in DB
             [
-              { label: "Membres Actifs", value: bikerCount > 0 ? bikerCount.toString() : "150+" },
+              { label: "Membres Actifs", value: bikerCount > 0 ? bikerCount.toString() : "150" },
               { label: "Sorties Annuelles", value: "48" },
-              { label: "Km Parcourus", value: "250k" },
+              { label: "Km Parcourus", value: "250" },
               { label: "Années d'Existence", value: "12" },
               { label: "Œuvres Caritatives", value: "24" },
             ].map((stat, i) => (
               <div key={i} className="p-8 border-r border-white/5 last:border-r-0 text-center group hover:bg-red-600 transition-all duration-500">
-                <div className="font-display text-6xl md:text-7xl mb-2 group-hover:scale-110 transition-transform">{stat.value}</div>
+                <div className="font-display text-6xl md:text-7xl mb-2 group-hover:scale-110 transition-transform">
+                  <Counter value={stat.value} suffix={stat.label.includes('Km') ? 'k' : ''} />
+                </div>
                 <div className="micro-label group-hover:text-white transition-colors">{stat.label}</div>
               </div>
             ))
@@ -74,9 +113,12 @@ export default function Home() {
             stats.map((stat, i) => (
               <div key={stat.id} className="p-8 border-r border-white/5 last:border-r-0 text-center group hover:bg-red-600 transition-all duration-500">
                 <div className="font-display text-6xl md:text-7xl mb-2 group-hover:scale-110 transition-transform">
-                  {stat.label.toLowerCase().includes('membre') 
-                    ? (bikerCount > 0 ? String(bikerCount) : String(stat.value || '0')) 
-                    : String(stat.value || '0')}
+                  <Counter 
+                    value={stat.label.toLowerCase().includes('membre') 
+                      ? (bikerCount > 0 ? String(bikerCount) : String(stat.value || '0')) 
+                      : String(stat.value || '0')} 
+                    suffix={stat.suffix}
+                  />
                 </div>
                 <div className="micro-label group-hover:text-white transition-colors">{stat.label}</div>
               </div>

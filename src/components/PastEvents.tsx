@@ -30,20 +30,47 @@ function SurveyModal({ event, onClose }: { event: any; onClose: () => void }) {
     const missing = [];
     if (!formData.respondentName) missing.push("Nom ou pseudo");
     if (!formData.isMember) missing.push("Statut de membre");
-    if (!formData.satisfaction) missing.push("Satisfaction globale");
-    if (!formData.organization) missing.push("Organisation");
-    if (!formData.route) missing.push("Parcours");
-    if (!formData.ambiance) missing.push("Ambiance");
-    if (!formData.security) missing.push("Sécurité");
-    if (!formData.logistics) missing.push("Logistique");
-    if (!formData.improvements) missing.push("Améliorations");
-    if (!formData.return) missing.push("Retour futur");
+    if (step >= 2) {
+      if (!formData.satisfaction) missing.push("Satisfaction globale");
+      if (!formData.organization) missing.push("Organisation");
+    }
+    if (step >= 3) {
+      if (!formData.route) missing.push("Parcours");
+      if (!formData.ambiance) missing.push("Ambiance");
+      if (!formData.security) missing.push("Sécurité");
+      if (!formData.logistics) missing.push("Logistique");
+    }
+    if (step >= 4) {
+      if (!formData.improvements) missing.push("Améliorations");
+      if (!formData.return) missing.push("Retour futur");
+    }
     return missing;
   };
 
   const missingFields = validate();
 
-  const nextStep = () => setStep(s => Math.min(s + 1, 4));
+  const nextStep = () => {
+    // Check if current step fields are filled
+    const currentStepMissing = [];
+    if (step === 1) {
+      if (!formData.respondentName) currentStepMissing.push("Nom ou pseudo");
+      if (!formData.isMember) currentStepMissing.push("Statut");
+    } else if (step === 2) {
+      if (!formData.satisfaction) currentStepMissing.push("Note");
+      if (!formData.organization) currentStepMissing.push("Organisation");
+    } else if (step === 3) {
+      if (!formData.route) currentStepMissing.push("Parcours");
+      if (!formData.ambiance) currentStepMissing.push("Ambiance");
+      if (!formData.security) currentStepMissing.push("Sécurité");
+      if (!formData.logistics) currentStepMissing.push("Logistique");
+    }
+
+    if (currentStepMissing.length === 0) {
+      setStep(s => Math.min(s + 1, 4));
+    } else {
+      // Show error or just block
+    }
+  };
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,7 +216,7 @@ function SurveyModal({ event, onClose }: { event: any; onClose: () => void }) {
                           </div>
 
                           <div>
-                            <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-2">Depuis combien de temps participes-tu ? (optionnel)</label>
+                            <label className="block text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-2">Depuis combien de temps participes-tu aux events du club ? (optionnel)</label>
                             <div className="grid grid-cols-2 gap-3">
                               {["Première fois", "Moins de 1 an", "1 à 3 ans", "Plus de 3 ans"].map(opt => (
                                 <button
@@ -385,7 +412,13 @@ function SurveyModal({ event, onClose }: { event: any; onClose: () => void }) {
                     <button
                       type="button"
                       onClick={nextStep}
-                      className="flex-[2] py-5 bg-red-600 hover:bg-red-700 font-display uppercase text-sm tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+                      className={`flex-[2] py-5 font-display uppercase text-sm tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
+                        (step === 1 && (!formData.respondentName || !formData.isMember)) ||
+                        (step === 2 && (!formData.satisfaction || !formData.organization)) ||
+                        (step === 3 && (!formData.route || !formData.ambiance || !formData.security || !formData.logistics))
+                        ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
+                        : "bg-red-600 hover:bg-red-700 text-white"
+                      }`}
                     >
                       SUIVANT
                     </button>
@@ -584,7 +617,7 @@ export default function PastEvents() {
                   <h3 className="card-title mb-4 group-hover:text-red-500 transition-colors">
                     {event.title}
                   </h3>
-                  <p className="body-text text-sm italic mb-6 line-clamp-2">
+                  <p className="body-text text-[13px] md:text-sm italic mb-6">
                     {event.description}
                   </p>
                   <div className="flex flex-col gap-4">
@@ -617,20 +650,20 @@ export default function PastEvents() {
       {/* Gallery Modal */}
       <AnimatePresence>
         {selectedEvent && selectedEvent.images && selectedEvent.images.length > 0 && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-12">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-12">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedEvent(null)}
-              className="absolute inset-0 bg-black/98 backdrop-blur-xl"
+              className="absolute inset-0 bg-black/98 md:backdrop-blur-xl"
             />
 
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-6xl aspect-video brutal-border overflow-hidden shadow-2xl bg-black"
+              className="relative w-full h-full md:h-auto md:max-w-6xl md:aspect-video md:brutal-border overflow-hidden shadow-2xl bg-black"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
@@ -676,9 +709,9 @@ export default function PastEvents() {
                 <div className="flex flex-col md:flex-row justify-between items-end gap-2 md:gap-4">
                   <div>
                     <span className="micro-label text-red-500 mb-2">{formatDate(selectedEvent.date)}</span>
-                    <h3 className="text-2xl md:text-4xl font-display uppercase text-white leading-none">{selectedEvent.title}</h3>
+                    <h3 className="text-xl md:text-4xl font-display uppercase text-white leading-none line-clamp-1 md:line-clamp-none">{selectedEvent.title}</h3>
                   </div>
-                  <div className="font-mono text-xs text-white/40 uppercase tracking-widest">
+                  <div className="font-mono text-[10px] md:text-xs text-white/40 uppercase tracking-widest">
                     Image {currentImageIndex + 1} <span className="text-red-500">/</span> {selectedEvent.images.length}
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import { signInWithEmailAndPassword, signOut, signInWithPopup, GoogleAuthProvide
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
-export default function AdminLogin() {
+export default function AdminLogin({ onAction }: { onAction?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,10 +21,11 @@ export default function AdminLogin() {
       if (u && isOpen) {
         setIsOpen(false);
         navigate("/admin");
+        if (onAction) onAction();
       }
     });
     return () => unsubscribe();
-  }, [isOpen, navigate]);
+  }, [isOpen, navigate, onAction]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,10 +51,10 @@ export default function AdminLogin() {
     } catch (err: any) {
       // Only show error if user is not actually signed in
       if (!auth.currentUser) {
-        if (err.code === 'auth/popup-closed-by-user') {
-          setError("La fenêtre de connexion a été fermée avant la fin.");
-        } else if (err.code === 'auth/cancelled-popup-request') {
+        if (err.code === 'auth/cancelled-popup-request') {
           // Ignore multiple popup requests
+        } else if (err.code === 'auth/popup-closed-by-user') {
+          setError("La fenêtre de connexion a été fermée avant la fin.");
         } else {
           setError("Erreur lors de la connexion Google : " + (err.message || "Erreur inconnue"));
         }
@@ -65,6 +66,7 @@ export default function AdminLogin() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    if (onAction) onAction();
     navigate("/");
   };
 
@@ -74,7 +76,10 @@ export default function AdminLogin() {
         {user ? (
           <>
             <button 
-              onClick={() => navigate("/admin")}
+              onClick={() => {
+                navigate("/admin");
+                if (onAction) onAction();
+              }}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-lg font-display uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-red-600/20"
             >
               <LayoutDashboard className="w-4 h-4" />
