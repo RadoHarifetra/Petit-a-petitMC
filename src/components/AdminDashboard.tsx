@@ -210,7 +210,7 @@ export default function AdminDashboard() {
   const [bikerCount, setBikerCount] = useState(0);
   const [bikersList, setBikersList] = useState<string[]>([]);
   const [allTreasury, setAllTreasury] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState({ registrations: 0, orders: 0 });
+  const [notifications, setNotifications] = useState({ registrations: 0, orders: 0, surveys: 0 });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -241,11 +241,19 @@ export default function AdminDashboard() {
       handleFirestoreError(error, OperationType.GET, "orders");
     });
 
+    const unsubscribeSurveys = onSnapshot(collection(db, "surveys"), (snapshot) => {
+      const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+      setNotifications(prev => ({ ...prev, surveys: unread }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "surveys");
+    });
+
     return () => {
       unsubscribeBikers();
       unsubscribeTreasury();
       unsubscribeReg();
       unsubscribeOrd();
+      unsubscribeSurveys();
     };
   }, []);
 
@@ -987,7 +995,7 @@ export default function AdminDashboard() {
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="font-bold text-lg">{String(item.name || item.title || item.label || '')}</h4>
-                          {item.status === 'new' && (
+                          {(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && (
                             <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-mono uppercase rounded-full">Nouveau</span>
                           )}
                         </div>
@@ -1091,7 +1099,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {item.status === 'new' && (
+                      {(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && (
                         <button 
                           onClick={() => markAsRead(item.id)}
                           className="p-3 hover:bg-white/10 rounded-xl text-green-500 transition-colors"

@@ -81,7 +81,8 @@ function SurveyModal({ event, onClose }: { event: any; onClose: () => void }) {
         ...formData,
         eventId: event.id,
         eventTitle: event.title,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        status: 'new'
       });
       setIsSuccess(true);
       setTimeout(onClose, 2000);
