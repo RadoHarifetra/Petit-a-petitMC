@@ -12,6 +12,7 @@ service cloud.firestore {
       return isAuthenticated() && 
         ((request.auth.token.email == "mcpetitapetit@gmail.com" && request.auth.token.email_verified == true) ||
          (request.auth.token.email == "radoh410@gmail.com" && request.auth.token.email_verified == true) ||
+         (request.auth.token.email == "rradoharifetra@gmail.com" && request.auth.token.email_verified == true) ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
@@ -119,6 +120,14 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidMemberContact(data) {
+      return data.memberName is string && data.memberName.size() > 0 &&
+             data.phone is string && data.phone.size() > 0 &&
+             data.axe in ['Nord', 'Sud', 'Est', 'Ouest'] &&
+             (!('seniority' in data) || data.seniority is string) &&
+             (!('order' in data) || data.order is number);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -183,6 +192,12 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isValidSurvey(request.resource.data);
       allow update, delete: if isAdmin();
+    }
+
+    match /members_contacts/{id} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidMemberContact(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {

@@ -144,6 +144,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["eventId", "satisfaction", "organization", "route", "ambiance", "security", "logistics", "improvements", "return", "respondentName", "isMember"]
+    },
+    "members_contacts": {
+      "title": "Coordonnées des Membres",
+      "description": "Liste des contacts et coordonnées des membres",
+      "type": "object",
+      "properties": {
+        "memberName": { "type": "string", "description": "Nom du membre" },
+        "phone": { "type": "string", "description": "Numéro de téléphone" },
+        "axe": { "type": "string", "enum": ["Nord", "Sud", "Est", "Ouest"], "description": "Axe géographique" },
+        "seniority": { "type": "string", "description": "Ancienneté" }
+      },
+      "required": ["memberName", "phone", "axe"]
     }
   },
   "firestore": {
@@ -156,6 +168,7 @@
     "/registrations": { "schema": "registrations", "description": "Inscriptions aux sorties" },
     "/orders": { "schema": "orders", "description": "Commandes de la boutique" },
     "/treasury": { "schema": "treasury", "description": "Transactions financières" },
-    "/surveys": { "schema": "surveys", "description": "Réponses aux sondages" }
+    "/surveys": { "schema": "surveys", "description": "Réponses aux sondages" },
+    "/members_contacts": { "schema": "members_contacts", "description": "Contacts des membres" }
   }
 }

@@ -33,22 +33,23 @@ export default function Navbar() {
           const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
           setNotifications(prev => ({ ...prev, surveys: unread }));
         }, (error) => {
-          // Silently handle permission denied for non-admins
           if (error.code !== 'permission-denied') {
             console.error("Survey listener error:", error);
           }
         });
 
-        unsubRegs = onSnapshot(query(collection(db, "registrations"), where("status", "==", "new")), (snapshot) => {
-          setNotifications(prev => ({ ...prev, registrations: snapshot.size }));
+        unsubRegs = onSnapshot(collection(db, "registrations"), (snapshot) => {
+          const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+          setNotifications(prev => ({ ...prev, registrations: unread }));
         }, (error) => {
           if (error.code !== 'permission-denied') {
             console.error("Regs listener error:", error);
           }
         });
 
-        unsubOrders = onSnapshot(query(collection(db, "orders"), where("status", "==", "new")), (snapshot) => {
-          setNotifications(prev => ({ ...prev, orders: snapshot.size }));
+        unsubOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
+          const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+          setNotifications(prev => ({ ...prev, orders: unread }));
         }, (error) => {
           if (error.code !== 'permission-denied') {
             console.error("Orders listener error:", error);

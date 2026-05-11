@@ -73,7 +73,7 @@ function SortableItem({ id, children, disabled }: { id: any; children: React.Rea
   );
 }
 
-type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys';
+type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys' | 'members_contacts';
 
 interface EntityConfig {
   id: EntityType;
@@ -88,6 +88,15 @@ const formatMGA = (value: any) => {
   const num = typeof value === 'string' ? parseInt(value.replace(/\D/g, '')) : Number(value);
   if (isNaN(num)) return String(value || '0');
   return new Intl.NumberFormat('fr-MG', { style: 'currency', currency: 'MGA', maximumFractionDigits: 0 }).format(num).replace('MGA', 'Ar');
+};
+
+const formatPhone = (phone: any) => {
+  if (!phone) return '';
+  const cleaned = String(phone).replace(/\D/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8, 10)}`;
+  }
+  return String(phone);
 };
 
 const configs: EntityConfig[] = [
@@ -189,6 +198,17 @@ const configs: EntityConfig[] = [
     label: 'Sondages',
     icon: ClipboardList,
     readOnly: true
+  },
+  {
+    id: 'members_contacts',
+    label: 'Membres (Coords)',
+    icon: Phone,
+    fields: [
+      { name: 'memberName', label: 'Membre', type: 'select', options: [] },
+      { name: 'phone', label: 'Téléphone', type: 'text' },
+      { name: 'axe', label: 'Axe', type: 'select', options: ['Nord', 'Sud', 'Est', 'Ouest'] },
+      { name: 'seniority', label: 'Ancienneté', type: 'text' }
+    ]
   }
 ];
 
@@ -227,16 +247,18 @@ export default function AdminDashboard() {
       handleFirestoreError(error, OperationType.GET, "treasury");
     });
 
-    const qReg = query(collection(db, "registrations"), where("status", "==", "new"));
+    const qReg = collection(db, "registrations");
     const unsubscribeReg = onSnapshot(qReg, (snapshot) => {
-      setNotifications(prev => ({ ...prev, registrations: snapshot.size }));
+      const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+      setNotifications(prev => ({ ...prev, registrations: unread }));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "registrations");
     });
 
-    const qOrd = query(collection(db, "orders"), where("status", "==", "new"));
+    const qOrd = collection(db, "orders");
     const unsubscribeOrd = onSnapshot(qOrd, (snapshot) => {
-      setNotifications(prev => ({ ...prev, orders: snapshot.size }));
+      const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+      setNotifications(prev => ({ ...prev, orders: unread }));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "orders");
     });
@@ -322,6 +344,9 @@ export default function AdminDashboard() {
       }
       if (activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners') {
         return (Number(a.order) || 999) - (Number(b.order) || 999);
+      }
+      if (activeTab === 'members_contacts') {
+        return (a.memberName || '').localeCompare(b.memberName || '');
       }
       return 0;
     });
@@ -509,6 +534,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const markAllAsRead = async () => {
+    const unreadItems = items.filter(i => !i.status || i.status === 'new');
+    if (unreadItems.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      unreadItems.forEach(item => {
+        batch.update(doc(db, activeTab, item.id), { status: 'read' });
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, activeTab);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!authChecked) return null;
 
   return (
@@ -533,35 +576,46 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Horizontal Menu */}
-        <div className="flex flex-wrap md:flex-nowrap md:overflow-x-auto pb-4 mb-12 gap-2 no-scrollbar">
-          {configs.map((config) => (
-            <button
-              key={config.id}
-              onClick={() => {
-                setActiveTab(config.id);
-                setIsEditing(null);
-                setFormData({});
-              }}
-              className={`relative flex items-center gap-3 px-6 py-3 rounded-xl transition-all whitespace-nowrap ${
-                activeTab === config.id 
-                  ? "bg-red-600 text-white shadow-lg shadow-red-600/20" 
-                  : "bg-white/5 text-gray-400 hover:bg-white/10"
-              }`}
-            >
-              <config.icon className="w-5 h-5" />
-              <span className="font-medium">{config.label}</span>
-              {(config.id === 'registrations' || config.id === 'orders' || config.id === 'surveys') && notifications[config.id] > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-[#050505] animate-pulse">
-                  {notifications[config.id]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {/* Dashboard Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-12 items-start">
+          {/* Sidebar Menu */}
+          <nav className="space-y-2 lg:sticky lg:top-32">
+            <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500 mb-4 px-4">Navigation</p>
+            {configs.map((config) => (
+              <button
+                key={config.id}
+                onClick={() => {
+                  setActiveTab(config.id);
+                  setIsEditing(null);
+                  setFormData({});
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`group relative flex items-center gap-4 px-6 py-4 rounded-2xl transition-all w-full border ${
+                  activeTab === config.id 
+                    ? "bg-red-600 text-white border-red-500 shadow-xl shadow-red-600/20" 
+                    : "bg-white/5 text-gray-400 border-white/5 hover:bg-white/10 hover:border-white/10"
+                }`}
+              >
+                <config.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${activeTab === config.id ? "text-white" : "text-gray-500"}`} />
+                <span className="font-bold flex-1 text-left tracking-tight">{config.label}</span>
+                
+                {(config.id === 'registrations' || config.id === 'orders' || config.id === 'surveys') && notifications[config.id] > 0 && (
+                  <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ${
+                    activeTab === config.id ? "bg-white text-red-600" : "bg-red-600 text-white"
+                  }`}>
+                    {notifications[config.id]}
+                  </span>
+                )}
+                
+                <ChevronRight className={`w-4 h-4 transition-all ${
+                  activeTab === config.id ? "rotate-90 opacity-100" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
+                }`} />
+              </button>
+            ))}
+          </nav>
 
-        {/* Content */}
-        <div className="space-y-12">
+          {/* Main Content Area */}
+          <div className="min-w-0">
           <div className={`grid grid-cols-1 ${currentConfig.readOnly ? '' : 'lg:grid-cols-2'} gap-16`}>
             {/* Form */}
             {!currentConfig.readOnly && (
@@ -585,8 +639,8 @@ export default function AdminDashboard() {
                 {currentConfig.fields?.map((field) => {
                   const isAutoStat = activeTab === 'stats' && field.name === 'value' && formData.label === 'Membres actifs';
                   
-                  // Dynamically update options for treasury member selection
-                  const fieldOptions = field.name === 'memberName' && activeTab === 'treasury' 
+                  // Dynamically update options for treasury or contacts member selection
+                  const fieldOptions = field.name === 'memberName' && (activeTab === 'treasury' || activeTab === 'members_contacts')
                     ? bikersList 
                     : field.options;
 
@@ -952,15 +1006,26 @@ export default function AdminDashboard() {
                 <h3 className="text-2xl font-bold">
                   {activeTab === 'registrations' ? 'Inscriptions Récentes' : activeTab === 'orders' ? 'Commandes Récentes' : activeTab === 'surveys' ? 'Retours d\'expérience' : `Liste des ${currentConfig.label}`}
                 </h3>
-                {activeTab === 'registrations' && items.length > 0 && (
-                  <button
-                    onClick={exportRegistrationsToExcel}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-600/20"
-                  >
-                    <Save className="w-4 h-4" />
-                    Exporter Excel
-                  </button>
-                )}
+                <div className="flex gap-4">
+                  {(activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && items.some(i => !i.status || i.status === 'new') && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-bold transition-all border border-white/5"
+                    >
+                      <Check className="w-4 h-4" />
+                      Tout marquer comme lu
+                    </button>
+                  )}
+                  {activeTab === 'registrations' && items.length > 0 && (
+                    <button
+                      onClick={exportRegistrationsToExcel}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-600/20"
+                    >
+                      <Save className="w-4 h-4" />
+                      Exporter Excel
+                    </button>
+                  )}
+                </div>
               </div>
             <div className="space-y-4">
               {items.length === 0 ? (
@@ -980,23 +1045,24 @@ export default function AdminDashboard() {
                     <div className="space-y-4">
                       {sortedItems.map((item) => (
                         <SortableItem key={item.id} id={item.id} disabled={activeTab !== 'bikers' && activeTab !== 'agenda' && activeTab !== 'partners'}>
-                          <div key={item.id} className={`p-6 bg-white/5 rounded-2xl border ${item.status === 'new' ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'} flex items-center justify-between group hover:border-red-500/30 transition-all`}>
+                          <div key={item.id} className={`p-6 bg-white/5 rounded-2xl border ${(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') ? 'border-red-500/50 bg-red-500/5 shadow-lg shadow-red-500/5' : 'border-white/10'} flex items-center justify-between group hover:border-red-500/30 transition-all`}>
                     <div className="flex items-center gap-6">
                       {item.image || item.logo ? (
                         <img src={item.image || item.logo} className="w-16 h-16 rounded-xl object-cover" alt="" />
-                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys') && (
+                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys' || activeTab === 'members_contacts') && (
                         <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center">
                           {activeTab === 'registrations' ? <Users className="w-6 h-6 text-red-500" /> : 
                            activeTab === 'orders' ? <ShoppingBag className="w-6 h-6 text-red-500" /> :
                            activeTab === 'surveys' ? <Star className="w-6 h-6 text-red-500" /> :
+                           activeTab === 'members_contacts' ? <Phone className="w-6 h-6 text-red-500" /> :
                            (item.type === 'Entrée' || item.type === 'Cotisation') ? <ArrowUpRight className="w-6 h-6 text-green-500" /> : <ArrowDownRight className="w-6 h-6 text-red-500" />}
                         </div>
                       )}
                       <div>
                         <div className="flex items-center gap-3 mb-1">
-                          <h4 className="font-bold text-lg">{String(item.name || item.title || item.label || '')}</h4>
+                          <h4 className="font-bold text-lg">{String(item.name || item.memberName || item.respondentName || item.title || item.label || 'Sans nom')}</h4>
                           {(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && (
-                            <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-mono uppercase rounded-full">Nouveau</span>
+                            <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-mono font-bold uppercase rounded-full shadow-lg shadow-red-600/30">Nouveau</span>
                           )}
                         </div>
                         
@@ -1005,14 +1071,14 @@ export default function AdminDashboard() {
                             <p className="text-sm text-red-500 font-mono uppercase tracking-widest">{item.eventTitle}</p>
                             <div className="flex items-center gap-4 text-xs text-gray-500">
                               <span className="flex items-center gap-1"><Bike className="w-3 h-3" /> {item.bike}</span>
-                              <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {item.contact}</span>
+                              <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {formatPhone(item.contact)}</span>
                             </div>
                           </div>
                         ) : activeTab === 'orders' ? (
                           <div className="space-y-1">
                             <p className="text-sm text-red-500 font-mono uppercase tracking-widest">{item.productName}</p>
                             <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {item.contact}</span>
+                              <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {formatPhone(item.contact)}</span>
                             </div>
                           </div>
                         ) : activeTab === 'treasury' ? (
@@ -1083,6 +1149,23 @@ export default function AdminDashboard() {
                               <p className="text-xs text-white">{item.improvements}</p>
                             </div>
                           </div>
+                        ) : activeTab === 'members_contacts' ? (
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap gap-2">
+                              <span className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-gray-400 font-mono">
+                                AXE: {item.axe}
+                              </span>
+                              {item.seniority && (
+                                <span className="px-2 py-0.5 rounded-lg bg-red-500/5 border border-red-500/10 text-[10px] text-red-500 font-mono">
+                                  Depuis: {item.seniority}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-red-600" />
+                              <span className="text-xl font-bold text-white font-mono tracking-tighter">{formatPhone(item.phone)}</span>
+                            </div>
+                          </div>
                         ) : (
                           <p className="text-sm text-gray-500">
                             {activeTab === 'shop' ? formatMGA(item.price) : activeTab === 'agenda' ? `PAF: ${formatMGA(item.paf)}` : activeTab === 'treasury' ? item.date : String(item.date || item.type || item.role || '')}
@@ -1149,5 +1232,6 @@ export default function AdminDashboard() {
       </div>
     </div>
   </div>
+</div>
   );
 }
