@@ -1,67 +1,66 @@
-import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { motion, useScroll, useSpring } from "motion/react";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import Home from "./components/Home";
-import Agenda from "./components/Agenda";
-import Shop from "./components/Shop";
-import Bikers from "./components/Bikers";
-import PastEvents from "./components/PastEvents";
-import AdminDashboard from "./components/AdminDashboard";
-import ErrorBoundary from "./components/ErrorBoundary";
+import React, { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Sidebar from './components/Sidebar';
+import Login from './components/Login';
 
-// Scroll to top on route change
-function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-  return null;
-}
+// Lazy load components for performance
+const Dashboard = lazy(() => import('./views/Dashboard'));
+const Clients = lazy(() => import('./views/Clients'));
+const Quotes = lazy(() => import('./views/Quotes'));
+const Tracking = lazy(() => import('./views/Tracking'));
+const Forwarders = lazy(() => import('./views/Forwarders'));
+const Warehouse = lazy(() => import('./views/Warehouse'));
+const History = lazy(() => import('./views/History'));
+const Settings = lazy(() => import('./views/Settings'));
 
-function AppContent() {
-  const location = useLocation();
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
+const AppContent: React.FC = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
 
   return (
-    <div className="min-h-screen bg-[#050505] selection:bg-red-500 selection:text-white flex flex-col">
-      {/* Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-red-600 origin-left z-[100]"
-        style={{ scaleX }}
-      />
-
-      <Navbar />
-      <ScrollToTop />
-
-      <main className="flex-grow">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/agenda" element={<Agenda />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/bikers" element={<Bikers />} />
-          <Route path="/events" element={<PastEvents />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Routes>
+    <div className="flex min-h-screen bg-bg overflow-x-hidden">
+      <Sidebar />
+      <main className="flex-1 md:ml-64 p-6 pt-20 md:pt-6">
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-full">
+            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/quotes" element={<Quotes />} />
+            <Route path="/tracking" element={<Tracking />} />
+            <Route path="/forwarders" element={<Forwarders />} />
+            <Route path="/warehouse" element={<Warehouse />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Suspense>
       </main>
-
-      <Footer />
     </div>
   );
-}
+};
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <Router>
+    <AuthProvider>
+      <BrowserRouter>
         <AppContent />
-      </Router>
-    </ErrorBoundary>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

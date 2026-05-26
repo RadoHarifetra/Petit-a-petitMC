@@ -1,5 +1,6 @@
 {
-  "name": "Petit à Petit - Moto Club",
-  "description": "Le site officiel du club moto Petit à Petit. Les petits deviendront grands. Agenda, Boutique de prestige, Les Bikers et Galerie d'événements.",
-  "requestFramePermissions": []
+  "name": "Universal Parts",
+  "description": "Logistics and supply chain management dashboard with real-time tracking, quotes, and exchange rate integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

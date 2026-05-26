@@ -1,207 +1,153 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    function isAuthenticated() {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- PHASE 3: PRIMITIVES ---
+    
+    function isSignedIn() {
       return request.auth != null;
     }
-    
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && 
-        ((request.auth.token.email == "mcpetitapetit@gmail.com" && request.auth.token.email_verified == true) ||
-         (request.auth.token.email == "radoh410@gmail.com" && request.auth.token.email_verified == true) ||
-         (request.auth.token.email == "rradoharifetra@gmail.com" && request.auth.token.email_verified == true) ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      return isVerified() && request.auth.token.email == "radoh410@gmail.com";
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-    function isValidAgenda(data) {
-      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
-             data.date is string && data.date.size() > 0 &&
-             data.time is string &&
-             data.location is string &&
-             (!('description' in data) || data.description is string) &&
-             (!('image' in data) || data.image is string) &&
-             (!('distance' in data) || data.distance == "" || data.distance is number) &&
-             (!('paf' in data) || data.paf == "" || data.paf is number) &&
-             (!('order' in data) || data.order is number);
+    function incoming() {
+      return request.resource.data;
     }
 
-    function isValidPartner(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.logo is string &&
-             (!('description' in data) || data.description is string) &&
-             (!('order' in data) || data.order is number);
+    function existing() {
+      return resource.data;
     }
 
-    function isValidShop(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-             data.price is string &&
-             data.type in ['Équipement', 'Accessoires', 'Vêtements', 'Moto', 'Pièce'] &&
-             (!('description' in data) || data.description is string) &&
-             (!('image' in data) || data.image is string);
+    // --- PHASE 4: VALIDATION BLUEPRINTS ---
+
+    function isValidClient(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && (data.email == null || (data.email is string && data.email.size() <= 100))
+          && (data.phone == null || (data.phone is string && data.phone.size() <= 30))
+          && data.labels is list && data.labels.size() <= 20
+          && data.keys().hasAll(['name', 'labels'])
+          && data.keys().size() >= 2;
     }
 
-    function isValidBiker(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.role is string &&
-             (!('image' in data) || data.image is string) &&
-             (!('bike' in data) || data.bike is string) &&
-             (!('quote' in data) || data.quote is string) &&
-             (!('order' in data) || data.order is number);
+    function isValidQuoteItem(item) {
+      return item.type is string && item.type.size() <= 100
+          && item.purchasePrice is number && item.purchasePrice >= 0
+          && item.salePrice is number && item.salePrice >= 0
+          && item.currency in ['EUR', 'USD', 'CNY', 'MGA']
+          && item.profit is number;
     }
 
-    function isValidEvent(data) {
-      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
-             data.date is string &&
-             (!('description' in data) || data.description is string) &&
-             (!('images' in data) || data.images is list);
-    }
-
-    function isValidStat(data) {
-      return data.label is string && data.label.size() > 0 && data.label.size() < 100 &&
-             data.value is string &&
-             (!('suffix' in data) || data.suffix is string);
-    }
-
-    function isValidRegistration(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.bike is string && data.bike.size() > 0 &&
-             data.contact is string && data.contact.size() > 0 &&
-             data.eventTitle is string &&
-             data.eventId is string &&
-             data.createdAt is string &&
-             data.status in ['new', 'read'];
+    function isValidQuote(data) {
+      return isValidId(data.clientId)
+          && (!('forwarderId' in data) || data.forwarderId == null || data.forwarderId == "" || (data.forwarderId is string && data.forwarderId.size() <= 128))
+          && data.items is list && data.items.size() > 0 && data.items.size() <= 50
+          && data.status in ['ORDERED', 'SENT', 'REJECTED']
+          && (!('totalProfit' in data) || data.totalProfit is number)
+          && data.keys().hasAll(['clientId', 'items', 'status']);
     }
 
     function isValidOrder(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.contact is string && data.contact.size() > 0 &&
-             data.productName is string &&
-             data.productId is string &&
-             data.createdAt is string &&
-             data.status in ['new', 'read'];
+      return isValidId(data.clientId)
+          && (!('forwarderId' in data) || data.forwarderId == null || data.forwarderId == "" || (data.forwarderId is string && data.forwarderId.size() <= 128))
+          && data.status in ['PREPARATION', 'TRANSIT', 'WAREHOUSE', 'DELIVERED', 'COLLECTED']
+          && (!('shippingType' in data) || data.shippingType in ['SEA', 'AIR', 'EXPRESS'])
+          && (!('weight' in data) || (data.weight is number && data.weight >= 0))
+          && (!('shippingCostMGA' in data) || (data.shippingCostMGA is number && data.shippingCostMGA >= 0))
+          && (!('totalToPayMGA' in data) || data.totalToPayMGA is number)
+          && (!('deliveryFeeMGA' in data) || data.deliveryFeeMGA is number)
+          && data.keys().hasAll(['clientId', 'status']);
     }
 
-    function isValidTreasury(data) {
-      return data.type in ['Cotisation', 'Entrée', 'Sortie'] &&
-             data.amount is number &&
-             data.description is string &&
-             data.date is string &&
-             (!('memberName' in data) || data.memberName is string) &&
-             (!('memberId' in data) || data.memberId is string);
+    function isValidForwarder(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.seaRate is number && data.seaRate >= 0
+          && data.airRate is number && data.airRate >= 0
+          && data.expressRate is number && data.expressRate >= 0
+          && data.keys().hasAll(['name', 'seaRate', 'airRate', 'expressRate'])
+          && data.keys().size() >= 4;
     }
 
-    function isValidSurvey(data) {
-      return data.eventId is string &&
-             data.eventTitle is string &&
-             data.satisfaction is number && data.satisfaction >= 1 && data.satisfaction <= 5 &&
-             data.organization in ['Très bonne', 'Bonne', 'Moyenne', 'À améliorer'] &&
-             data.route in ['Excellent', 'Bon', 'Moyen', 'Mauvais'] &&
-             (!('routeWhy' in data) || data.routeWhy is string) &&
-             data.ambiance in ['Excellente', 'Bonne', 'Correcte', 'À améliorer'] &&
-             data.security in ['Toujours', 'La plupart du temps', 'Pas vraiment'] &&
-             (!('securityComment' in data) || data.securityComment is string) &&
-             data.logistics in ['Très satisfait', 'Satisfait', 'Peu satisfait', 'Insatisfait'] &&
-             data.improvements is string &&
-             data.return in ['Oui', 'Peut-être', 'Non'] &&
-             data.respondentName is string && data.respondentName.size() > 0 &&
-             data.isMember in ['Oui', 'Non'] &&
-             (!('experience' in data) || data.experience == "" || data.experience in ['Première fois', 'Moins de 1 an', '1 à 3 ans', 'Plus de 3 ans']) &&
-             data.createdAt is string;
-    }
+    // --- PHASE 5: COLLECTION MATCHES ---
 
-    function isValidMemberContact(data) {
-      return data.memberName is string && data.memberName.size() > 0 &&
-             data.phone is string && data.phone.size() > 0 &&
-             data.axe in ['Nord', 'Sud', 'Est', 'Ouest'] &&
-             (!('seniority' in data) || data.seniority is string) &&
-             (!('order' in data) || data.order is number);
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
-    match /agenda/{id} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidAgenda(request.resource.data);
-      allow delete: if isAdmin();
-    }
-    
-    match /shop/{id} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidShop(request.resource.data);
-      allow delete: if isAdmin();
-    }
-    
-    match /bikers/{id} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidBiker(request.resource.data);
-      allow delete: if isAdmin();
-    }
-    
-    match /events/{id} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidEvent(request.resource.data);
-      allow delete: if isAdmin();
-    }
-    
-    match /partners/{id} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidPartner(request.resource.data);
-      allow delete: if isAdmin();
-    }
-    
-    match /stats/{id} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidStat(request.resource.data);
+    match /clients/{clientId} {
+      allow list: if isVerified();
+      allow get: if isVerified();
+      allow create: if isVerified() && isValidClient(incoming()) 
+                     && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidClient(incoming())
+                     && incoming().createdAt == existing().createdAt
+                     && (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'phone', 'labels', 'updatedAt']))
+                     && incoming().updatedAt == request.time;
       allow delete: if isAdmin();
     }
 
-    match /registrations/{id} {
-      allow read: if isAdmin();
-      allow create: if isValidRegistration(request.resource.data);
-      allow update: if isAdmin() && isValidRegistration(request.resource.data);
+    match /quotes/{quoteId} {
+      allow list: if isVerified();
+      allow get: if isVerified();
+      allow create: if isVerified() && isValidQuote(incoming())
+                     && exists(/databases/$(database)/documents/clients/$(incoming().clientId))
+                     && (!('forwarderId' in incoming()) || incoming().forwarderId == null || incoming().forwarderId == "" || exists(/databases/$(database)/documents/forwarders/$(incoming().forwarderId)))
+                     && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidQuote(incoming())
+                     && ( !('createdAt' in existing()) || incoming().createdAt == existing().createdAt )
+                     && (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['status', 'items', 'totalProfit', 'forwarderId', 'weight', 'shippingType', 'updatedAt', 'quoteId', 'clientId']))
+                     && incoming().updatedAt == request.time;
+      allow delete: if isVerified() && (isAdmin() || existing().status != 'ORDERED');
+    }
+
+    match /orders/{orderId} {
+      allow list: if isVerified();
+      allow get: if isVerified();
+      allow create: if isVerified() && isValidOrder(incoming())
+                     && exists(/databases/$(database)/documents/clients/$(incoming().clientId))
+                     && (!('forwarderId' in incoming()) || incoming().forwarderId == null || incoming().forwarderId == "" || exists(/databases/$(database)/documents/forwarders/$(incoming().forwarderId)))
+                     && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidOrder(incoming())
+                     && ( !('createdAt' in existing()) || incoming().createdAt == existing().createdAt )
+                     && (
+                        isAdmin() || (
+                          // Terminal lock: No updates if already COLLECTED
+                          existing().status != 'COLLECTED' && (
+                            // Action: Logistics Update
+                            (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'trackingNumber', 'freightForwarder', 'forwarderId', 'weight', 'shippingType', 'shippingCostMGA', 'totalToPayMGA', 'eta', 'sentAt', 'arrivedAt', 'items', 'updatedAt', 'quoteId', 'clientId'])) ||
+                            // Action: Collection
+                            (incoming().status == 'COLLECTED' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'deliveryFeeMGA', 'totalToPayMGA', 'collectedAt', 'updatedAt']))
+                          )
+                        )
+                     )
+                     && incoming().updatedAt == request.time;
       allow delete: if isAdmin();
     }
 
-    match /orders/{id} {
-      allow read: if isAdmin();
-      allow create: if isValidOrder(request.resource.data);
-      allow update: if isAdmin() && isValidOrder(request.resource.data);
-      allow delete: if isAdmin();
+    match /forwarders/{forwarderId} {
+      allow list: if isVerified();
+      allow get: if isVerified();
+      allow create: if isVerified() && isValidForwarder(incoming())
+                     && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidForwarder(incoming())
+                     && ( !('createdAt' in existing()) || incoming().createdAt == existing().createdAt )
+                     && (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['name', 'seaRate', 'airRate', 'expressRate', 'updatedAt']))
+                     && incoming().updatedAt == request.time;
+      allow delete: if isVerified(); // Based on UI allowing deletion
     }
 
-    match /treasury/{id} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin() && isValidTreasury(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /surveys/{id} {
-      allow read: if isAdmin();
-      allow create: if isValidSurvey(request.resource.data);
-      allow update, delete: if isAdmin();
-    }
-
-    match /members_contacts/{id} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin() && isValidMemberContact(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    match /settings/{settingId} {
+      allow read: if isVerified();
       allow write: if isAdmin();
     }
   }
