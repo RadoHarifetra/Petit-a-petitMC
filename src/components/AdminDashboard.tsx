@@ -73,7 +73,7 @@ function SortableItem({ id, children, disabled }: { id: any; children: React.Rea
   );
 }
 
-type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys' | 'members_contacts';
+type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys' | 'members_contacts' | 'pilots';
 
 interface EntityConfig {
   id: EntityType;
@@ -209,6 +209,18 @@ const configs: EntityConfig[] = [
       { name: 'axe', label: 'Axe', type: 'select', options: ['Nord', 'Sud', 'Est', 'Ouest'] },
       { name: 'seniority', label: 'Ancienneté', type: 'text' }
     ]
+  },
+  {
+    id: 'pilots',
+    label: 'Pilotes',
+    icon: Bike,
+    fields: [
+      { name: 'pseudo', label: 'Pseudo / Nom', type: 'text' },
+      { name: 'bike', label: 'Moto', type: 'text' },
+      { name: 'category', label: 'Catégorie', type: 'text' },
+      { name: 'number', label: 'Numéro (course)', type: 'text' },
+      { name: 'image', label: 'Photo', type: 'image' }
+    ]
   }
 ];
 
@@ -342,7 +354,7 @@ export default function AdminDashboard() {
       if (activeTab === 'surveys') {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
-      if (activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners') {
+      if (activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'pilots') {
         return (Number(a.order) || 999) - (Number(b.order) || 999);
       }
       if (activeTab === 'members_contacts') {
@@ -385,7 +397,7 @@ export default function AdminDashboard() {
         data.amount = Number(data.amount || 0);
       }
 
-      if ((activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners') && !isEditing) {
+      if ((activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'pilots') && !isEditing) {
         data.order = items.length + 1;
       }
       
@@ -1044,17 +1056,18 @@ export default function AdminDashboard() {
                   >
                     <div className="space-y-4">
                       {sortedItems.map((item) => (
-                        <SortableItem key={item.id} id={item.id} disabled={activeTab !== 'bikers' && activeTab !== 'agenda' && activeTab !== 'partners'}>
+                        <SortableItem key={item.id} id={item.id} disabled={activeTab !== 'bikers' && activeTab !== 'agenda' && activeTab !== 'partners' && activeTab !== 'pilots'}>
                           <div key={item.id} className={`p-6 bg-white/5 rounded-2xl border ${(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') ? 'border-red-500/50 bg-red-500/5 shadow-lg shadow-red-500/5' : 'border-white/10'} flex items-center justify-between group hover:border-red-500/30 transition-all`}>
                     <div className="flex items-center gap-6">
                       {item.image || item.logo ? (
                         <img src={item.image || item.logo} className="w-16 h-16 rounded-xl object-cover" alt="" />
-                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys' || activeTab === 'members_contacts') && (
+                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys' || activeTab === 'members_contacts' || activeTab === 'pilots') && (
                         <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center">
                           {activeTab === 'registrations' ? <Users className="w-6 h-6 text-red-500" /> : 
                            activeTab === 'orders' ? <ShoppingBag className="w-6 h-6 text-red-500" /> :
                            activeTab === 'surveys' ? <Star className="w-6 h-6 text-red-500" /> :
                            activeTab === 'members_contacts' ? <Phone className="w-6 h-6 text-red-500" /> :
+                           activeTab === 'pilots' ? <Bike className="w-6 h-6 text-red-500" /> :
                            (item.type === 'Entrée' || item.type === 'Cotisation') ? <ArrowUpRight className="w-6 h-6 text-green-500" /> : <ArrowDownRight className="w-6 h-6 text-red-500" />}
                         </div>
                       )}
@@ -1165,6 +1178,15 @@ export default function AdminDashboard() {
                               <Phone className="w-4 h-4 text-red-600" />
                               <span className="text-xl font-bold text-white font-mono tracking-tighter">{formatPhone(item.phone)}</span>
                             </div>
+                          </div>
+                        ) : activeTab === 'pilots' ? (
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-red-500 uppercase font-mono tracking-widest">
+                              N° {item.number} &mdash; {item.category}
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              Moto: <span className="text-white font-medium">{item.bike}</span>
+                            </p>
                           </div>
                         ) : (
                           <p className="text-sm text-gray-500">

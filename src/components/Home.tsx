@@ -5,16 +5,18 @@ import { motion } from "motion/react";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../firebase";
 import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
-import { Calendar, MapPin, ArrowRight } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Bike } from "lucide-react";
 import { Link } from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
 
 export default function Home() {
   const [stats, setStats] = useState<any[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [pilots, setPilots] = useState<any[]>([]);
   const [bikerCount, setBikerCount] = useState(0);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingPilots, setIsLoadingPilots] = useState(true);
 
   useEffect(() => {
     // Fetch Biker Count
@@ -44,10 +46,21 @@ export default function Home() {
       setIsLoadingEvents(false);
     });
 
+    // Fetch Pilots
+    const pilotsQuery = query(collection(db, "pilots"), orderBy("order", "asc"));
+    const unsubscribePilots = onSnapshot(pilotsQuery, (snapshot) => {
+      setPilots(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setIsLoadingPilots(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "pilots");
+      setIsLoadingPilots(false);
+    });
+
     return () => {
       unsubscribeBikers();
       unsubscribeStats();
       unsubscribeEvents();
+      unsubscribePilots();
     };
   }, []);
 
@@ -129,6 +142,85 @@ export default function Home() {
       </section>
 
       <Partners />
+
+      {/* Pilots Section */}
+      <section className="py-24 bg-[#0a0a0a] border-t border-white/5 relative overflow-hidden">
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center mb-20">
+            <span className="micro-label text-red-500 mb-4 block">Championnat 2026</span>
+            <h2 className="section-title">
+              Nos <span className="text-red-500">Pilotes Officiels</span>
+            </h2>
+            <p className="body-text text-sm max-w-xl mx-auto mt-4 text-zinc-400">
+              Découvrez la liste des pilotes qui vont fièrement représenter notre club lors du championnat officiel 2026.
+            </p>
+          </div>
+
+          {isLoadingPilots ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-20">
+              <LoadingSpinner size="lg" />
+              <p className="micro-label">Chargement des pilotes...</p>
+            </div>
+          ) : pilots.length === 0 ? (
+            <div className="text-center py-16 text-zinc-500 font-mono text-sm max-w-md mx-auto border border-white/5 rounded-3xl bg-zinc-950/40">
+              Aucun pilote listé pour le championnat 2026 pour le moment.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {pilots.map((pilot, i) => (
+                <motion.div
+                  key={pilot.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  viewport={{ once: true }}
+                  className="group relative flex flex-col bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden hover:border-red-500/55 transition-all duration-300 shadow-xl shadow-black/30"
+                >
+                  {/* Photo */}
+                  <div className="relative aspect-[3/4] overflow-hidden bg-zinc-900 flex items-center justify-center">
+                    {pilot.image ? (
+                      <img
+                        src={pilot.image}
+                        alt={pilot.pseudo}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out grayscale group-hover:grayscale-0"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="text-zinc-700 group-hover:text-red-500/50 transition-colors">
+                        <Bike className="w-16 h-16 stroke-[1]" />
+                      </div>
+                    )}
+                    
+                    {/* Race Number Overlay Badge */}
+                    <div className="absolute top-4 right-4 bg-red-600 text-white font-display text-4xl px-3 py-1 rounded-lg tracking-tight shadow-lg shadow-red-600/30 font-bold">
+                      #{pilot.number}
+                    </div>
+
+                    {/* Category Overlay Label */}
+                    <span className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-md text-white border border-white/5 uppercase font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-md">
+                      {pilot.category}
+                    </span>
+                  </div>
+
+                  {/* Biker Details */}
+                  <div className="p-6 flex flex-col flex-grow bg-zinc-950">
+                    <h3 className="card-title text-2xl group-hover:text-red-500 transition-colors mb-2">
+                      {pilot.pseudo}
+                    </h3>
+                    <div className="mt-auto flex items-center gap-2 text-zinc-400 text-sm font-sans border-t border-white/5 pt-4">
+                      <span className="p-1 px-2 border border-white/10 rounded-md bg-white/5 font-mono text-[10px] uppercase text-zinc-400">Moto</span>
+                      <span className="font-semibold text-zinc-200">{pilot.bike}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Subtle artistic light effect */}
+        <div className="absolute top-1/4 right-0 w-80 h-80 bg-red-600/5 blur-[120px] rounded-full pointer-events-none" />
+      </section>
 
       {/* Agenda Preview Section */}
       <section className="relative py-16 bg-[#050505] overflow-hidden">
