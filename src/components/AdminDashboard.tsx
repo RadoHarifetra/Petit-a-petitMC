@@ -10,7 +10,7 @@ import {
   Calendar, ShoppingBag, Users, Image as ImageIcon, BarChart3, 
   ArrowLeft, Bell, Check, Phone, Bike, Package, Wallet,
   GripVertical, ArrowUpRight, ArrowDownRight, Handshake,
-  ClipboardList, Star, MessageSquare
+  ClipboardList, Star, MessageSquare, ChevronDown
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
@@ -244,6 +244,10 @@ export default function AdminDashboard() {
   const [allTreasury, setAllTreasury] = useState<any[]>([]);
   const [notifications, setNotifications] = useState({ registrations: 0, orders: 0, surveys: 0 });
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  const totalNotifications = notifications.registrations + notifications.orders + notifications.surveys;
 
   useEffect(() => {
     const unsubscribeBikers = onSnapshot(collection(db, "bikers"), (snapshot) => {
@@ -590,8 +594,71 @@ export default function AdminDashboard() {
 
         {/* Dashboard Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-12 items-start">
-          {/* Sidebar Menu */}
-          <nav className="space-y-2 lg:sticky lg:top-32">
+          {/* Mobile Navigation Dropdown */}
+          <div className="lg:hidden w-full space-y-3">
+            <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500 px-4">Navigation</p>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-white/5 text-white border border-white/10 w-full hover:bg-white/10 transition-all shadow-lg active:scale-[0.99]"
+            >
+              <currentConfig.icon className="w-5 h-5 text-red-500" />
+              <span className="font-bold flex-1 text-left tracking-tight">{currentConfig.label}</span>
+              
+              {totalNotifications > 0 && (
+                <span className="flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-red-600 text-white">
+                  {totalNotifications}
+                </span>
+              )}
+              
+              <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${mobileMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {mobileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden border border-white/5 rounded-2xl bg-zinc-950 divide-y divide-white/5 max-h-[320px] overflow-y-auto shadow-2xl relative z-30"
+                >
+                  {configs.map((config) => (
+                    <button
+                      key={config.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(config.id);
+                        setIsEditing(null);
+                        setFormData({});
+                        setMobileMenuOpen(false);
+                        setTimeout(() => {
+                          contentRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        }, 120);
+                      }}
+                      className={`flex items-center gap-4 px-6 py-4 transition-all w-full text-left ${
+                        activeTab === config.id 
+                          ? "bg-red-600/20 text-red-500 font-bold" 
+                          : "text-gray-400 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <config.icon className={`w-5 h-5 ${activeTab === config.id ? "text-red-500" : "text-gray-500"}`} />
+                      <span className="flex-1 tracking-tight">{config.label}</span>
+                      
+                      {(config.id === 'registrations' || config.id === 'orders' || config.id === 'surveys') && notifications[config.id] > 0 && (
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-red-600 text-white leading-none">
+                          {notifications[config.id]}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Desktop Sidebar Menu */}
+          <nav className="hidden lg:flex lg:flex-col lg:space-y-2 lg:sticky lg:top-32">
             <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500 mb-4 px-4">Navigation</p>
             {configs.map((config) => (
               <button
@@ -627,7 +694,7 @@ export default function AdminDashboard() {
           </nav>
 
           {/* Main Content Area */}
-          <div className="min-w-0">
+          <div ref={contentRef} className="min-w-0 scroll-mt-28">
           <div className={`grid grid-cols-1 ${currentConfig.readOnly ? '' : 'lg:grid-cols-2'} gap-16`}>
             {/* Form */}
             {!currentConfig.readOnly && (
