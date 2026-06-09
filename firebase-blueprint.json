@@ -170,6 +170,17 @@
         "order": { "type": "number", "description": "Ordre d'affichage" }
       },
       "required": ["pseudo", "bike", "category", "number"]
+    },
+    "users": {
+      "title": "Administrateurs",
+      "description": "Utilisateurs avec accès d'administration",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Email Google" },
+        "name": { "type": "string", "description": "Nom complet" },
+        "role": { "type": "string", "enum": ["admin"], "description": "Rôle" }
+      },
+      "required": ["email", "name", "role"]
     }
   },
   "firestore": {
@@ -184,6 +195,7 @@
     "/treasury": { "schema": "treasury", "description": "Transactions financières" },
     "/surveys": { "schema": "surveys", "description": "Réponses aux sondages" },
     "/members_contacts": { "schema": "members_contacts", "description": "Contacts des membres" },
-    "/pilots": { "schema": "pilots", "description": "Collection des pilotes" }
+    "/pilots": { "schema": "pilots", "description": "Collection des pilotes" },
+    "/users": { "schema": "users", "description": "Collection des administrateurs" }
   }
 }

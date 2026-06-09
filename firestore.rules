@@ -13,8 +13,11 @@ service cloud.firestore {
         ((request.auth.token.email == "mcpetitapetit@gmail.com" && request.auth.token.email_verified == true) ||
          (request.auth.token.email == "radoh410@gmail.com" && request.auth.token.email_verified == true) ||
          (request.auth.token.email == "rradoharifetra@gmail.com" && request.auth.token.email_verified == true) ||
+         (request.auth.token.email == "entsdanny@gmail.com" && request.auth.token.email_verified == true) ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin'));
     }
 
     function hasOnlyAllowedFields(fields) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { 
-  collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
+  collection, addDoc, getDocs, deleteDoc, doc, updateDoc, setDoc,
   onSnapshot, query, where, writeBatch 
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
@@ -73,7 +73,7 @@ function SortableItem({ id, children, disabled }: { id: any; children: React.Rea
   );
 }
 
-type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys' | 'members_contacts' | 'pilots';
+type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys' | 'members_contacts' | 'pilots' | 'users';
 
 interface EntityConfig {
   id: EntityType;
@@ -221,6 +221,16 @@ const configs: EntityConfig[] = [
       { name: 'number', label: 'Numéro (course)', type: 'text' },
       { name: 'image', label: 'Photo', type: 'image' }
     ]
+  },
+  {
+    id: 'users',
+    label: 'Administrateurs',
+    icon: Users,
+    fields: [
+      { name: 'email', label: 'Adresse Email (Google)', type: 'text' },
+      { name: 'name', label: 'Nom complet / Titre', type: 'text' },
+      { name: 'role', label: 'Rôle', type: 'select', options: ['admin'] }
+    ]
   }
 ];
 
@@ -364,6 +374,9 @@ export default function AdminDashboard() {
       if (activeTab === 'members_contacts') {
         return (a.memberName || '').localeCompare(b.memberName || '');
       }
+      if (activeTab === 'users') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
       return 0;
     });
   }, [items, activeTab]);
@@ -423,7 +436,12 @@ export default function AdminDashboard() {
         }
       }
 
-      if (isEditing) {
+      if (activeTab === 'users') {
+        data.email = String(data.email || '').toLowerCase().trim();
+        data.role = data.role || 'admin';
+        const docId = isEditing ? isEditing : data.email;
+        await setDoc(doc(db, "users", docId), data);
+      } else if (isEditing) {
         await updateDoc(doc(db, activeTab, isEditing), data);
       } else {
         await addDoc(collection(db, activeTab), data);
@@ -1125,20 +1143,21 @@ export default function AdminDashboard() {
                       {sortedItems.map((item) => (
                         <SortableItem key={item.id} id={item.id} disabled={activeTab !== 'bikers' && activeTab !== 'agenda' && activeTab !== 'partners' && activeTab !== 'pilots'}>
                           <div key={item.id} className={`p-6 bg-white/5 rounded-2xl border ${(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') ? 'border-red-500/50 bg-red-500/5 shadow-lg shadow-red-500/5' : 'border-white/10'} flex items-center justify-between group hover:border-red-500/30 transition-all`}>
-                    <div className="flex items-center gap-6">
-                      {item.image || item.logo ? (
-                        <img src={item.image || item.logo} className="w-16 h-16 rounded-xl object-cover" alt="" />
-                      ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys' || activeTab === 'members_contacts' || activeTab === 'pilots') && (
-                        <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center">
-                          {activeTab === 'registrations' ? <Users className="w-6 h-6 text-red-500" /> : 
-                           activeTab === 'orders' ? <ShoppingBag className="w-6 h-6 text-red-500" /> :
-                           activeTab === 'surveys' ? <Star className="w-6 h-6 text-red-500" /> :
-                           activeTab === 'members_contacts' ? <Phone className="w-6 h-6 text-red-500" /> :
-                           activeTab === 'pilots' ? <Bike className="w-6 h-6 text-red-500" /> :
-                           (item.type === 'Entrée' || item.type === 'Cotisation') ? <ArrowUpRight className="w-6 h-6 text-green-500" /> : <ArrowDownRight className="w-6 h-6 text-red-500" />}
-                        </div>
-                      )}
-                      <div>
+                            <div className="flex items-center gap-6">
+                              {item.image || item.logo ? (
+                                <img src={item.image || item.logo} className="w-16 h-16 rounded-xl object-cover" alt="" />
+                              ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys' || activeTab === 'members_contacts' || activeTab === 'pilots' || activeTab === 'users') && (
+                                <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center">
+                                  {activeTab === 'registrations' ? <Users className="w-6 h-6 text-red-500" /> : 
+                                   activeTab === 'orders' ? <ShoppingBag className="w-6 h-6 text-red-500" /> :
+                                   activeTab === 'surveys' ? <Star className="w-6 h-6 text-red-500" /> :
+                                   activeTab === 'members_contacts' ? <Phone className="w-6 h-6 text-red-500" /> :
+                                   activeTab === 'pilots' ? <Bike className="w-6 h-6 text-red-500" /> :
+                                   activeTab === 'users' ? <Users className="w-6 h-6 text-red-500" /> :
+                                   (item.type === 'Entrée' || item.type === 'Cotisation') ? <ArrowUpRight className="w-6 h-6 text-green-500" /> : <ArrowDownRight className="w-6 h-6 text-red-500" />}
+                                </div>
+                              )}
+                              <div>
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="font-bold text-lg">{String(item.name || item.memberName || item.respondentName || item.title || item.label || 'Sans nom')}</h4>
                           {(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && (
@@ -1253,6 +1272,15 @@ export default function AdminDashboard() {
                             </p>
                             <p className="text-sm text-gray-400">
                               Moto: <span className="text-white font-medium">{item.bike}</span>
+                            </p>
+                          </div>
+                        ) : activeTab === 'users' ? (
+                          <div className="space-y-1">
+                            <p className="text-sm text-red-500 font-mono font-bold tracking-tight">
+                              {item.email}
+                            </p>
+                            <p className="text-[11px] text-gray-400">
+                              Rôle: <span className="px-1.5 py-0.5 rounded bg-red-600/25 border border-red-500/20 text-white font-mono text-[10px] font-bold uppercase">{item.role}</span>
                             </p>
                           </div>
                         ) : (
