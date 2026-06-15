@@ -13,8 +13,9 @@ import {
   ClipboardList, Star, MessageSquare, ChevronDown
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
+import { checkUserIsAdmin } from "../utils/adminCheck";
 import { useMemo } from "react";
 import { 
   DndContext, 
@@ -73,7 +74,7 @@ function SortableItem({ id, children, disabled }: { id: any; children: React.Rea
   );
 }
 
-type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'surveys' | 'members_contacts' | 'pilots' | 'users';
+type EntityType = 'agenda' | 'shop' | 'bikers' | 'events' | 'stats' | 'registrations' | 'orders' | 'treasury' | 'partners' | 'race_partners' | 'surveys' | 'members_contacts' | 'pilots' | 'users';
 
 interface EntityConfig {
   id: EntityType;
@@ -117,12 +118,23 @@ const configs: EntityConfig[] = [
   },
   {
     id: 'partners',
-    label: 'Partenaires',
+    label: 'Partenaires / Sponsors',
     icon: Handshake,
     fields: [
       { name: 'name', label: 'Nom', type: 'text' },
       { name: 'description', label: 'Description', type: 'textarea' },
-      { name: 'logo', label: 'Logo', type: 'image' }
+      { name: 'logo', label: 'Logo', type: 'image' },
+      { name: 'type', label: 'Type', type: 'select', options: ['Partenaire', 'Sponsor'] }
+    ]
+  },
+  {
+    id: 'race_partners',
+    label: 'Course Live - Sponsors / Partenaires',
+    icon: Handshake,
+    fields: [
+      { name: 'name', label: 'Nom de la Marque', type: 'text' },
+      { name: 'logo', label: 'Logo', type: 'image' },
+      { name: 'type', label: 'Type de Partenaire', type: 'select', options: ['Sponsor', 'Partenaire'] }
     ]
   },
   {
@@ -260,6 +272,8 @@ export default function AdminDashboard() {
   const totalNotifications = notifications.registrations + notifications.orders + notifications.surveys;
 
   useEffect(() => {
+    if (!authChecked) return;
+
     const unsubscribeBikers = onSnapshot(collection(db, "bikers"), (snapshot) => {
       setBikerCount(snapshot.size);
       setBikersList(snapshot.docs.map(doc => doc.data().name).sort());
@@ -303,14 +317,26 @@ export default function AdminDashboard() {
       unsubscribeOrd();
       unsubscribeSurveys();
     };
-  }, []);
+  }, [authChecked]);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         navigate("/");
       } else {
-        setAuthChecked(true);
+        try {
+          const isAdminUser = await checkUserIsAdmin(user.email, user.uid);
+          if (isAdminUser) {
+            setAuthChecked(true);
+          } else {
+            await signOut(auth);
+            navigate("/");
+          }
+        } catch (err) {
+          console.error("Dashboard auth check failed:", err);
+          await signOut(auth);
+          navigate("/");
+        }
       }
     });
 
@@ -368,7 +394,7 @@ export default function AdminDashboard() {
       if (activeTab === 'surveys') {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
-      if (activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'pilots') {
+      if (activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'race_partners' || activeTab === 'pilots') {
         return (Number(a.order) || 999) - (Number(b.order) || 999);
       }
       if (activeTab === 'members_contacts') {
@@ -414,7 +440,7 @@ export default function AdminDashboard() {
         data.amount = Number(data.amount || 0);
       }
 
-      if ((activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'pilots') && !isEditing) {
+      if ((activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'race_partners' || activeTab === 'pilots') && !isEditing) {
         data.order = items.length + 1;
       }
       
@@ -1141,11 +1167,16 @@ export default function AdminDashboard() {
                   >
                     <div className="space-y-4">
                       {sortedItems.map((item) => (
-                        <SortableItem key={item.id} id={item.id} disabled={activeTab !== 'bikers' && activeTab !== 'agenda' && activeTab !== 'partners' && activeTab !== 'pilots'}>
+                        <SortableItem key={item.id} id={item.id} disabled={activeTab !== 'bikers' && activeTab !== 'agenda' && activeTab !== 'partners' && activeTab !== 'race_partners' && activeTab !== 'pilots'}>
                           <div key={item.id} className={`p-6 bg-white/5 rounded-2xl border ${(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') ? 'border-red-500/50 bg-red-500/5 shadow-lg shadow-red-500/5' : 'border-white/10'} flex items-center justify-between group hover:border-red-500/30 transition-all`}>
                             <div className="flex items-center gap-6">
                               {item.image || item.logo ? (
-                                <img src={item.image || item.logo} className="w-16 h-16 rounded-xl object-cover" alt="" />
+                                <img 
+                                  src={item.image || item.logo} 
+                                  className={`w-16 h-16 rounded-xl ${(activeTab === 'partners' || activeTab === 'race_partners') ? 'object-contain p-1 bg-white/5' : 'object-cover'}`} 
+                                  alt="" 
+                                  referrerPolicy="no-referrer"
+                                />
                               ) : (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys' || activeTab === 'members_contacts' || activeTab === 'pilots' || activeTab === 'users') && (
                                 <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center">
                                   {activeTab === 'registrations' ? <Users className="w-6 h-6 text-red-500" /> : 

@@ -28,6 +28,18 @@
       },
       "required": ["name", "logo"]
     },
+    "race_partners": {
+      "title": "Partenaires de Course",
+      "description": "Sponsors et Partenaires de la Course Live",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Nom de la marque" },
+        "logo": { "type": "string", "description": "URL du logo brute" },
+        "type": { "type": "string", "enum": ["Sponsor", "Partenaire"], "description": "Sponsor ou Partenaire" },
+        "order": { "type": "number", "description": "Ordre d'affichage" }
+      },
+      "required": ["name", "logo"]
+    },
     "shop": {
       "title": "Boutique",
       "description": "Articles en vente dans la boutique",
@@ -189,6 +201,7 @@
     "/bikers": { "schema": "bikers", "description": "Collection des membres" },
     "/events": { "schema": "events", "description": "Collection des événements passés" },
     "/partners": { "schema": "partners", "description": "Collection des partenaires" },
+    "/race_partners": { "schema": "race_partners", "description": "Collection des sponsors et partenaires de la course live" },
     "/stats": { "schema": "stats", "description": "Collection des statistiques" },
     "/registrations": { "schema": "registrations", "description": "Inscriptions aux sorties" },
     "/orders": { "schema": "orders", "description": "Commandes de la boutique" },

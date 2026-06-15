@@ -9,6 +9,7 @@ import Shop from "./components/Shop";
 import Bikers from "./components/Bikers";
 import PastEvents from "./components/PastEvents";
 import AdminDashboard from "./components/AdminDashboard";
+import LiveRace from "./components/LiveRace";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 // Scroll to top on route change
@@ -47,6 +48,7 @@ function AppContent() {
           <Route path="/shop" element={<Shop />} />
           <Route path="/bikers" element={<Bikers />} />
           <Route path="/events" element={<PastEvents />} />
+          <Route path="/live" element={<LiveRace />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </main>

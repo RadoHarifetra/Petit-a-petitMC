@@ -5,6 +5,7 @@ import { LogIn, X, ShieldAlert, Chrome, LayoutDashboard, LogOut } from "lucide-r
 import { signInWithEmailAndPassword, signOut, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { checkUserIsAdmin } from "../utils/adminCheck";
 
 export default function AdminLogin({ onAction }: { onAction?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,16 +13,36 @@ export default function AdminLogin({ onAction }: { onAction?: () => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (u && isOpen) {
-        setIsOpen(false);
-        navigate("/admin");
-        if (onAction) onAction();
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setIsLoading(true);
+        try {
+          const isAdminUser = await checkUserIsAdmin(u.email, u.uid);
+          if (isAdminUser) {
+            setUser(u);
+            if (isOpen) {
+              setIsOpen(false);
+              navigate("/admin");
+              if (onAction) onAction();
+            }
+          } else {
+            setUser(null);
+            setError("Accès refusé : ce compte Google n'est pas autorisé.");
+            await signOut(auth);
+          }
+        } catch (err) {
+          console.error("Login verification error:", err);
+          setUser(null);
+          await signOut(auth);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setUser(null);
       }
     });
     return () => unsubscribe();

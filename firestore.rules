@@ -46,6 +46,13 @@ service cloud.firestore {
              (!('order' in data) || data.order is number);
     }
 
+    function isValidRacePartner(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.logo is string &&
+             (!('type' in data) || data.type in ['Sponsor', 'Partenaire']) &&
+             (!('order' in data) || data.order is number);
+    }
+
     function isValidShop(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.price is string &&
@@ -173,6 +180,12 @@ service cloud.firestore {
       allow create, update: if isAdmin() && isValidPartner(request.resource.data);
       allow delete: if isAdmin();
     }
+
+    match /race_partners/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidRacePartner(request.resource.data);
+      allow delete: if isAdmin();
+    }
     
     match /stats/{id} {
       allow read: if true;
@@ -218,8 +231,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /duels/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.email == userId || isAdmin());
       allow write: if isAdmin();
     }
   }

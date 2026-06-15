@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, Bike, Calendar, ShoppingBag, Users, Image as ImageIcon, Home, LayoutDashboard } from "lucide-react";
+import { Menu, X, Bike, Calendar, ShoppingBag, Users, Image as ImageIcon, Home, LayoutDashboard, Zap } from "lucide-react";
 import AdminLogin from "./AdminLogin";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { checkUserIsAdmin } from "../utils/adminCheck";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,40 +22,50 @@ export default function Navbar() {
     let unsubRegs: () => void = () => {};
     let unsubOrders: () => void = () => {};
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       // Clean up previous listeners
       unsubSurveys();
       unsubRegs();
       unsubOrders();
 
       if (user) {
-        // Listen for new surveys
-        unsubSurveys = onSnapshot(collection(db, "surveys"), (snapshot) => {
-          const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
-          setNotifications(prev => ({ ...prev, surveys: unread }));
-        }, (error) => {
-          if (error.code !== 'permission-denied') {
-            console.error("Survey listener error:", error);
-          }
-        });
+        try {
+          const isAdminUser = await checkUserIsAdmin(user.email, user.uid);
+          if (isAdminUser) {
+            // Listen for new surveys
+            unsubSurveys = onSnapshot(collection(db, "surveys"), (snapshot) => {
+              const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+              setNotifications(prev => ({ ...prev, surveys: unread }));
+            }, (error) => {
+              if (error.code !== 'permission-denied') {
+                console.error("Survey listener error:", error);
+              }
+            });
 
-        unsubRegs = onSnapshot(collection(db, "registrations"), (snapshot) => {
-          const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
-          setNotifications(prev => ({ ...prev, registrations: unread }));
-        }, (error) => {
-          if (error.code !== 'permission-denied') {
-            console.error("Regs listener error:", error);
-          }
-        });
+            unsubRegs = onSnapshot(collection(db, "registrations"), (snapshot) => {
+              const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+              setNotifications(prev => ({ ...prev, registrations: unread }));
+            }, (error) => {
+              if (error.code !== 'permission-denied') {
+                console.error("Regs listener error:", error);
+              }
+            });
 
-        unsubOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
-          const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
-          setNotifications(prev => ({ ...prev, orders: unread }));
-        }, (error) => {
-          if (error.code !== 'permission-denied') {
-            console.error("Orders listener error:", error);
+            unsubOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
+              const unread = snapshot.docs.filter(doc => !doc.data().status || doc.data().status === 'new').length;
+              setNotifications(prev => ({ ...prev, orders: unread }));
+            }, (error) => {
+              if (error.code !== 'permission-denied') {
+                console.error("Orders listener error:", error);
+              }
+            });
+          } else {
+            setNotifications({ surveys: 0, registrations: 0, orders: 0 });
           }
-        });
+        } catch (err) {
+          console.error("Error setting up navbar admin listeners:", err);
+          setNotifications({ surveys: 0, registrations: 0, orders: 0 });
+        }
       } else {
         // Reset notifications if logged out
         setNotifications({ surveys: 0, registrations: 0, orders: 0 });
@@ -76,7 +87,8 @@ export default function Navbar() {
     { name: "Agenda", path: "/agenda", icon: Calendar },
     { name: "Shop", path: "/shop", icon: ShoppingBag },
     { name: "Le Crew", path: "/bikers", icon: Users },
-    { name: "Events", path: "/events", icon: ImageIcon }
+    { name: "Events", path: "/events", icon: ImageIcon },
+    { name: "Live", path: "/live", icon: Zap }
   ];
 
   return (
