@@ -49,29 +49,32 @@ export default function Partners() {
           <h2 className="section-title">Ils roulent <span className="text-red-500">avec nous</span></h2>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-12 md:gap-20 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
           {partners.map((partner, i) => (
             <motion.div
               key={partner.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-              viewport={{ once: true }}
-              className="flex flex-col items-center justify-center transition-all duration-300 group"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              viewport={{ once: true, margin: "100px" }}
+              className="p-10 brutal-border bg-zinc-950/50 group hover:bg-zinc-900 transition-all flex flex-col items-center text-center"
             >
-              <div className="h-16 md:h-20 flex items-center justify-center">
-                <img 
-                  src={partner.logo} 
-                  alt={partner.name} 
-                  title={partner.name}
-                  className="max-h-full max-w-[180px] object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
-                  referrerPolicy="no-referrer"
-                />
+              <div className={`w-32 h-32 mb-8 ${isMobile ? "grayscale-0" : "grayscale"} group-hover:grayscale-0 transition-all duration-500 relative`}>
+                <div className="absolute inset-0 rounded-full border-2 border-red-600/20 group-hover:border-red-600 transition-colors" />
+                <div className="w-full h-full rounded-full overflow-hidden bg-white/5">
+                  <img 
+                    src={partner.logo} 
+                    alt={partner.name} 
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
               </div>
-              {partner.name && (
-                <span className="text-xs font-mono text-gray-500 mt-3 group-hover:text-red-500 transition-colors">
-                  {partner.name}
-                </span>
+              <h3 className="card-title mb-4 group-hover:text-red-500 transition-colors">{partner.name}</h3>
+              {partner.description && (
+                <p className="body-text text-sm italic max-w-xs text-gray-400">
+                  {partner.description}
+                </p>
               )}
             </motion.div>
           ))}

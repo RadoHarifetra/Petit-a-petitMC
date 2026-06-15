@@ -190,7 +190,7 @@ export default function LiveRace() {
                   </span>
                 </div>
                 <h1 className="font-display text-3xl md:text-4xl uppercase tracking-tighter">
-                  Course <span className="text-red-500">Live</span>
+                  iRace-RAY <span className="text-red-500">Live</span>
                 </h1>
               </div>
             </div>
@@ -216,14 +216,14 @@ export default function LiveRace() {
             <span className="text-[10px] font-mono uppercase tracking-widest text-red-500 block mb-3 font-semibold">
               Sponsors Officiels :
             </span>
-            <div className="flex flex-wrap items-center gap-8 md:gap-10">
+            <div className="flex flex-wrap items-center gap-10 md:gap-14">
               {sponsors.map(sponsor => (
                 <img
                   key={sponsor.id}
                   src={sponsor.logo}
                   alt={sponsor.name}
                   title={sponsor.name}
-                  className="h-8 md:h-9 w-auto object-contain hover:scale-105 duration-300 transition-transform"
+                  className="h-16 md:h-22 w-auto object-contain hover:scale-105 duration-300 transition-transform"
                   referrerPolicy="no-referrer"
                 />
               ))}
@@ -317,8 +317,7 @@ export default function LiveRace() {
                       <th className="pb-4 font-normal">Pilote</th>
                       <th className="pb-4 font-normal">Moto</th>
                       <th className="pb-4 font-normal">Catégorie</th>
-                      <th className="pb-4 font-normal text-right">Meilleur Chrono</th>
-                      <th className="pb-4 font-normal text-right">Tours</th>
+                      <th className="pb-4 font-normal text-right">Chrono</th>
                       <th className="pb-4 font-normal text-right">Écart</th>
                     </tr>
                   </thead>
@@ -364,9 +363,6 @@ export default function LiveRace() {
                           </td>
                           <td className="py-4 font-mono font-bold text-right text-red-500 transition-transform origin-right">
                             {item.bestLap}
-                          </td>
-                          <td className="py-4 font-mono text-right text-gray-400">
-                            {item.totalLaps}
                           </td>
                           <td className="py-4 font-mono text-xs text-right text-gray-500">
                             {item.gap}
@@ -433,9 +429,6 @@ export default function LiveRace() {
                         <span className="font-mono font-bold text-red-500 text-sm">
                           {item.bestLap}
                         </span>
-                        <span className="text-[10px] font-mono text-gray-400 mt-0.5">
-                          {item.totalLaps} tours
-                        </span>
                         <span className="text-[10px] font-mono text-gray-500 mt-0.5">
                           {item.gap}
                         </span>
@@ -455,17 +448,17 @@ export default function LiveRace() {
             <span className="text-xs text-red-500 uppercase tracking-widest font-mono font-bold block mb-1">
               Partenaires d'Honneur
             </span>
-            <h3 className="font-display text-xl uppercase tracking-wider text-white">Ils roulent avec nous</h3>
+            <h3 className="font-display text-xl uppercase tracking-wider text-white">Ils sont dans la course</h3>
           </div>
           
-          <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16 py-4 font-mono">
+          <div className="flex flex-wrap items-center justify-center gap-12 md:gap-20 py-4 font-mono">
             {partnersOnly.map(partner => (
               <img
                 key={partner.id}
                 src={partner.logo}
                 alt={partner.name}
                 title={partner.name}
-                className="h-10 md:h-12 w-auto object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                className="h-14 md:h-18 w-auto object-contain hover:scale-105 duration-300 transition-transform"
                 referrerPolicy="no-referrer"
               />
             ))}
