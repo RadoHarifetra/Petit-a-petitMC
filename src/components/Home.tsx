@@ -17,8 +17,13 @@ export default function Home() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingPilots, setIsLoadingPilots] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
     // Fetch Biker Count
     const unsubscribeBikers = onSnapshot(collection(db, "bikers"), (snapshot) => {
       setBikerCount(snapshot.size);
@@ -57,6 +62,7 @@ export default function Home() {
     });
 
     return () => {
+      window.removeEventListener("resize", checkMobile);
       unsubscribeBikers();
       unsubscribeStats();
       unsubscribeEvents();
@@ -179,10 +185,15 @@ export default function Home() {
                   {/* Photo */}
                   <div className="relative aspect-[3/4] overflow-hidden bg-zinc-900 flex items-center justify-center">
                     {pilot.image ? (
-                      <img
+                      <motion.img
                         src={pilot.image}
                         alt={pilot.pseudo}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out grayscale group-hover:grayscale-0"
+                        initial={{ filter: "grayscale(100%)", scale: 1 }}
+                        whileInView={isMobile ? { filter: "grayscale(0%)" } : { filter: "grayscale(100%)" }}
+                        whileHover={!isMobile ? { filter: "grayscale(0%)", scale: 1.05 } : {}}
+                        viewport={{ once: false, amount: 0.5 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
