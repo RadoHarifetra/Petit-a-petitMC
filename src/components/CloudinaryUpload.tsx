@@ -26,6 +26,8 @@ export default function CloudinaryUpload({ value, onChange, label = "Image", mul
   }, []);
 
   const openWidget = () => {
+    const collectedUrls: string[] = [];
+
     window.cloudinary.openUploadWidget(
       {
         cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
@@ -39,14 +41,16 @@ export default function CloudinaryUpload({ value, onChange, label = "Image", mul
       (error: any, result: any) => {
         if (!error && result.event === "success") {
           const url = result.info.secure_url;
-          if (multiple && onMultipleChange) {
-            onMultipleChange([url]);
+          if (multiple) {
+            collectedUrls.push(url);
           } else {
             onChange(url);
           }
         }
-        if (!error && result.event === "queues-end" && multiple && onMultipleChange) {
-          // handled per upload above
+        if (!error && result.event === "queues-end") {
+          if (multiple && onMultipleChange && collectedUrls.length > 0) {
+            onMultipleChange(collectedUrls);
+          }
         }
       }
     );
