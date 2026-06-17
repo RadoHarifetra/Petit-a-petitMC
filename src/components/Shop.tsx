@@ -151,7 +151,7 @@ export default function Shop() {
               </div>
 
               <a 
-                href="https://wa.me/261340767905"
+                href="https://wa.me/261344428327"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex items-center gap-6 text-2xl font-display uppercase tracking-tighter hover:text-red-500 transition-colors"
@@ -266,7 +266,7 @@ export default function Shop() {
                           <h4 className="card-title group-hover:text-red-500 transition-colors">{product.name}</h4>
                           <span className="text-red-500 font-display text-2xl">{formatMGA(product.price)}</span>
                         </div>
-                        <p className="body-text text-sm line-clamp-2">
+                        <p className="body-text text-xs leading-relaxed text-zinc-400 whitespace-pre-line">
                           {product.description}
                         </p>
                         <button 

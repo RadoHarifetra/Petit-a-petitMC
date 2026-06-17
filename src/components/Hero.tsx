@@ -48,7 +48,7 @@ export default function Hero() {
                 Une fraternité soudée, une passion commune. Rejoignez-nous pour explorer les routes et vivre l'adrénaline à l'état pur.
               </p>
               
-              <div className="flex flex-col md:flex-row gap-8">
+              <div className="flex flex-col md:flex-row gap-8 flex-wrap justify-center">
                 <Link to="/bikers" className="group flex items-center gap-4 text-2xl font-display uppercase tracking-tighter hover:text-red-500 transition-colors">
                   <span className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center group-hover:border-red-500 group-hover:bg-red-500 transition-all">
                     <ChevronRight className="w-6 h-6" />
@@ -61,6 +61,17 @@ export default function Hero() {
                   </span>
                   Nos aventures
                 </Link>
+                <a 
+                  href="https://wa.me/261344428327"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-4 text-2xl font-display uppercase tracking-tighter hover:text-red-500 transition-colors"
+                >
+                  <span className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center group-hover:border-red-500 group-hover:bg-red-500 transition-all">
+                    <ChevronRight className="w-6 h-6" />
+                  </span>
+                  Un projet ? Devenir partenaire
+                </a>
               </div>
             </div>
           </motion.div>

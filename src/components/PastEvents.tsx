@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ChevronLeft, ChevronRight, Star, ClipboardList, Check } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Star, ClipboardList, Check, Heart, MessageCircle } from "lucide-react";
 import { collection, onSnapshot, query, orderBy, addDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
@@ -646,6 +646,33 @@ export default function PastEvents() {
             ))
           )}
         </div>
+
+        {/* Support Cause Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          viewport={{ once: true }}
+          className="mt-24 p-8 md:p-12 brutal-border bg-zinc-950/50 hover:bg-zinc-900 transition-all text-center max-w-3xl mx-auto flex flex-col items-center gap-6"
+        >
+          <div className="w-12 h-12 rounded-full bg-red-600/10 border border-red-500/30 flex items-center justify-center text-red-500">
+            <Heart className="w-6 h-6 animate-pulse" />
+          </div>
+          <h3 className="font-display text-2xl md:text-3xl uppercase tracking-wider text-white">
+            Soutenir notre cause
+          </h3>
+          <p className="body-text text-sm md:text-base leading-relaxed text-zinc-300 max-w-xl">
+            Envie de soutenir notre cause ? Parlons-en. Chaque contribution, qu'elle soit en centimes, en ariary ou en dollars, sera entièrement destinée à nos bénéficiaires.
+          </p>
+          <a
+            href="https://wa.me/261344428327"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-3 px-6 py-3.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-mono text-[10px] uppercase tracking-widest transition-all rounded-lg font-bold shadow-lg shadow-red-600/20"
+          >
+            <MessageCircle className="w-4 h-4" /> Parlons-en sur WhatsApp
+          </a>
+        </motion.div>
       </div>
 
       {/* Gallery Modal */}
