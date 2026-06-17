@@ -41,7 +41,7 @@
 }
 
 .section-title {
-  @apply font-display text-5xl md:text-7xl uppercase tracking-tighter leading-[0.9];
+  @apply font-display text-5xl md:text-5xl uppercase tracking-tighter leading-[0.9];
 }
 
 .card-title {
