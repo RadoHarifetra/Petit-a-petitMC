@@ -9,7 +9,7 @@ import {
   Plus, Trash2, Edit2, X, Save, ChevronRight, LayoutDashboard, 
   Calendar, ShoppingBag, Users, Image as ImageIcon, BarChart3, 
   ArrowLeft, Bell, Check, Phone, Bike, Package, Wallet,
-  GripVertical, ArrowUpRight, ArrowDownRight, Handshake,
+  GripVertical, ArrowUpRight, ArrowDownRight, Handshake, Minus,
   ClipboardList, Star, MessageSquare, ChevronDown
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -267,6 +267,7 @@ export default function AdminDashboard() {
   const [notifications, setNotifications] = useState({ registrations: 0, orders: 0, surveys: 0 });
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isTreasuryFormOpen, setIsTreasuryFormOpen] = useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   const totalNotifications = notifications.registrations + notifications.orders + notifications.surveys;
@@ -371,6 +372,7 @@ export default function AdminDashboard() {
     setFormData({});
     setIsEditing(null);
     setConfirmDeleteId(null);
+    setIsTreasuryFormOpen(false);
   }, [activeTab]);
 
   useEffect(() => {
@@ -438,6 +440,9 @@ export default function AdminDashboard() {
       
       if (activeTab === 'treasury') {
         data.amount = Number(data.amount || 0);
+        if (data.type !== 'Cotisation') {
+          delete data.memberName;
+        }
       }
 
       if ((activeTab === 'bikers' || activeTab === 'agenda' || activeTab === 'partners' || activeTab === 'race_partners' || activeTab === 'pilots') && !isEditing) {
@@ -474,6 +479,7 @@ export default function AdminDashboard() {
       }
       setFormData({});
       setIsEditing(null);
+      setIsTreasuryFormOpen(false);
     } catch (error) {
       handleFirestoreError(error, isEditing ? OperationType.UPDATE : OperationType.CREATE, activeTab);
     } finally {
@@ -497,10 +503,14 @@ export default function AdminDashboard() {
     const expenses = allTreasury
       .filter(t => t.type === 'Sortie')
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+    const cotisations = allTreasury
+      .filter(t => t.type === 'Cotisation')
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
     return {
       income,
       expenses,
-      balance: income - expenses
+      balance: income - expenses,
+      cotisations
     };
   }, [allTreasury]);
 
@@ -525,6 +535,9 @@ export default function AdminDashboard() {
       editData.images = editData.images.join(', ');
     }
     setFormData(editData);
+    if (activeTab === 'treasury') {
+      setIsTreasuryFormOpen(true);
+    }
     
     // Auto scroll to form
     setTimeout(() => {
@@ -615,22 +628,22 @@ export default function AdminDashboard() {
   if (!authChecked) return null;
 
   return (
-    <div className="min-h-screen bg-[#050505] pt-24 pb-12">
-      <div className="container mx-auto px-6">
+    <div className="min-h-screen bg-[#050505] pt-20 sm:pt-24 pb-8 sm:pb-12">
+      <div className="container mx-auto px-4 sm:px-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-12 gap-4 sm:gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center">
-              <LayoutDashboard className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
+              <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h2 className="font-display text-3xl uppercase tracking-tight">Tableau de Bord Admin</h2>
-              <p className="text-gray-500 text-sm">Gérez le contenu de votre site</p>
+              <h2 className="font-display text-xl sm:text-3xl uppercase tracking-tight">Tableau de Bord Admin</h2>
+              <p className="text-gray-500 text-xs sm:text-sm">Gérez le contenu de votre site</p>
             </div>
           </div>
           <button 
             onClick={() => navigate("/")} 
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-mono text-sm uppercase tracking-widest"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-mono text-xs sm:text-sm uppercase tracking-widest self-start md:self-auto"
           >
             <ArrowLeft className="w-4 h-4" /> Retour au site
           </button>
@@ -739,7 +752,374 @@ export default function AdminDashboard() {
 
           {/* Main Content Area */}
           <div ref={contentRef} className="min-w-0 scroll-mt-28">
-          <div className={`grid grid-cols-1 ${currentConfig.readOnly ? '' : 'lg:grid-cols-2'} gap-16`}>
+            {activeTab === 'treasury' ? (
+              <div className="space-y-8 animate-fadeIn">
+                {/* 1. Top Stats Cards */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-6">
+                  <div className="p-3 sm:p-6 md:p-8 glass rounded-2xl sm:rounded-3xl border border-green-500/20 bg-green-500/5 shadow-xl sm:shadow-2xl shadow-green-500/5 flex flex-col justify-between">
+                    <div className="flex items-center gap-1.5 sm:gap-3 text-green-500 mb-2 sm:mb-4">
+                      <ArrowUpRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                      <span className="text-[9px] sm:text-xs text-gray-400 uppercase tracking-widest font-mono font-bold truncate">Entrées</span>
+                    </div>
+                    <div className="text-[11px] xs:text-sm sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight font-sans truncate">
+                      {formatMGA(treasuryStats.income)}
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 sm:p-6 md:p-8 glass rounded-2xl sm:rounded-3xl border border-red-500/20 bg-red-500/5 shadow-xl sm:shadow-2xl shadow-red-500/5 flex flex-col justify-between">
+                    <div className="flex items-center gap-1.5 sm:gap-3 text-red-500 mb-2 sm:mb-4">
+                      <ArrowDownRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                      <span className="text-[9px] sm:text-xs text-gray-400 uppercase tracking-widest font-mono font-bold truncate">Sorties</span>
+                    </div>
+                    <div className="text-[11px] xs:text-sm sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight font-sans truncate">
+                      {formatMGA(treasuryStats.expenses)}
+                    </div>
+                  </div>
+
+                  <div className={`p-3 sm:p-6 md:p-8 glass rounded-2xl sm:rounded-3xl border transition-all duration-300 shadow-xl sm:shadow-2xl flex flex-col justify-between ${
+                    treasuryStats.balance >= 0 
+                      ? 'border-green-500/30 bg-green-500/10 shadow-green-500/5' 
+                      : 'border-red-500/30 bg-red-500/10 shadow-red-500/5'
+                  }`}>
+                    <div className={`flex items-center gap-1.5 sm:gap-3 mb-2 sm:mb-4 ${
+                      treasuryStats.balance >= 0 ? 'text-green-500' : 'text-red-500'
+                    }`}>
+                      <Wallet className="w-3.5 h-3.5 sm:w-5 sm:h-5 animate-pulse shrink-0" />
+                      <span className="text-[9px] sm:text-xs text-gray-400 uppercase tracking-widest font-mono font-bold truncate">Solde</span>
+                    </div>
+                    <div className="text-[11px] xs:text-sm sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight font-sans truncate">
+                      {formatMGA(treasuryStats.balance)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Action Buttons & Export */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10">
+                  <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => {
+                        setFormData({ type: 'Entrée', date: new Date().toISOString().split('T')[0] });
+                        setIsEditing(null);
+                        setIsTreasuryFormOpen(true);
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-lg shadow-green-600/20 active:scale-95 cursor-pointer w-full xs:w-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden xs:inline">Entrée / Cotisation</span>
+                      <span className="xs:hidden">Entrée / Cotis</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFormData({ type: 'Sortie', date: new Date().toISOString().split('T')[0] });
+                        setIsEditing(null);
+                        setIsTreasuryFormOpen(true);
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-lg shadow-red-600/20 active:scale-95 cursor-pointer w-full xs:w-auto"
+                    >
+                      <Minus className="w-4 h-4" />
+                      Sortie
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={exportTreasuryReportToExcel}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-lg shadow-black/20 w-full sm:w-auto cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 text-green-500" />
+                    <span className="hidden xs:inline">Exporter Rapport Complet</span>
+                    <span className="xs:hidden">Exporter Rapport</span>
+                  </button>
+                </div>
+
+                {/* 3. Collapsible Add/Edit Form */}
+                <AnimatePresence>
+                  {isTreasuryFormOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -10, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 bg-white/5 p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-white/10">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base sm:text-xl font-bold flex items-center gap-2 sm:gap-3">
+                            {isEditing ? <Edit2 className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-red-500" /> : <Plus className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-red-500" />}
+                            {isEditing ? "Modifier la transaction" : "Nouvelle transaction"}
+                          </h3>
+                          <button 
+                            type="button"
+                            onClick={() => { setIsTreasuryFormOpen(false); setIsEditing(null); setFormData({}); }}
+                            className="text-xs sm:text-sm text-gray-500 hover:text-white cursor-pointer"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+
+                        {/* Segmented Control for Type Selector */}
+                        <div className="space-y-2">
+                          <label className="text-xs sm:text-sm font-bold text-gray-400">Type de Transaction</label>
+                          <div className="grid grid-cols-3 gap-2 p-1 bg-black/40 border border-white/5 rounded-2xl">
+                            {['Entrée', 'Cotisation', 'Sortie'].map((t) => {
+                              const isActive = formData.type === t;
+                              const isPositiveType = t === 'Entrée' || t === 'Cotisation';
+                              return (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={() => {
+                                    const updates: any = { type: t };
+                                    if (t === 'Cotisation') {
+                                      updates.amount = 100000;
+                                      updates.description = "Cotisation annuelle";
+                                    } else {
+                                      updates.memberName = "";
+                                      if (formData.description === "Cotisation annuelle") {
+                                        updates.description = "";
+                                      }
+                                      if (formData.amount === 100000) {
+                                        updates.amount = "";
+                                      }
+                                    }
+                                    setFormData({ ...formData, ...updates });
+                                  }}
+                                  className={`py-2 sm:py-3 px-2 sm:px-4 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                                    isActive 
+                                      ? isPositiveType 
+                                        ? 'bg-green-600 text-white shadow-lg shadow-green-600/10' 
+                                        : 'bg-red-600 text-white shadow-lg shadow-red-600/10'
+                                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                  }`}
+                                >
+                                  {t}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {formData.type === 'Cotisation' && (
+                          <div className="space-y-2">
+                            <label className="text-xs sm:text-sm font-bold text-gray-400">Membre</label>
+                            <select
+                              required
+                              value={formData.memberName || ''}
+                              onChange={(e) => setFormData({ ...formData, memberName: e.target.value })}
+                              className="w-full bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 focus:border-red-500 outline-none transition-colors text-white text-sm"
+                            >
+                              <option value="">Sélectionner un membre...</option>
+                              {bikersList.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <label className="text-xs sm:text-sm font-bold text-gray-400">Montant (Ar)</label>
+                          <input
+                            required
+                            type="number"
+                            placeholder="Ex: 100000"
+                            value={formData.amount || ''}
+                            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 focus:border-red-500 outline-none transition-colors text-white text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs sm:text-sm font-bold text-gray-400">Description / Libellé</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="Ex: Cotisation annuelle, Carburant sortie moto..."
+                            value={formData.description || ''}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 focus:border-red-500 outline-none transition-colors text-white text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs sm:text-sm font-bold text-gray-400">Date</label>
+                          <input
+                            required
+                            type="date"
+                            value={formData.date || ''}
+                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 focus:border-red-500 outline-none transition-colors text-white text-sm"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full py-3 sm:py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-red-600/20 disabled:opacity-50 cursor-pointer text-sm sm:text-base"
+                        >
+                          {loading ? "Enregistrement..." : (
+                            <>
+                              <Save className="w-5 h-5" />
+                              {isEditing ? "Mettre à jour" : "Ajouter au site"}
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* 4. Two Column layout for list & dues */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+                  
+                  {/* Left Column (lg:col-span-7) - Transactions history */}
+                  <div className="lg:col-span-7 space-y-4 sm:space-y-6 bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10">
+                    <h3 className="text-base sm:text-xl font-bold flex items-center gap-2 sm:gap-3 border-b border-white/5 pb-3 sm:pb-4">
+                      <Wallet className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-red-500" />
+                      Historique des Transactions
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      {sortedItems.length === 0 ? (
+                        <div className="p-12 border border-dashed border-white/10 rounded-3xl text-center text-gray-500">
+                          Aucune transaction trouvée.
+                        </div>
+                      ) : (
+                        <div className="space-y-3 sm:space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                          {sortedItems.map((item) => (
+                            <div key={item.id} className="p-3.5 sm:p-5 bg-white/5 rounded-xl sm:rounded-2xl border border-white/10 flex items-center justify-between group hover:border-red-500/30 transition-all gap-3">
+                              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-xl flex items-center justify-center shrink-0">
+                                  {item.type === 'Entrée' || item.type === 'Cotisation' ? (
+                                    <ArrowUpRight className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-green-500" />
+                                  ) : (
+                                    <ArrowDownRight className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-red-500" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="font-bold text-xs sm:text-base text-white truncate leading-tight">
+                                    {item.type === 'Cotisation' ? `Cotisation - ${item.memberName || 'Inconnu'}` : (item.description || 'Transaction')}
+                                  </h4>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span className={`font-bold text-[11px] sm:text-sm ${
+                                      item.type === 'Entrée' || item.type === 'Cotisation' ? 'text-green-400' : 'text-red-400'
+                                    }`}>
+                                      {item.type === 'Entrée' || item.type === 'Cotisation' ? '+' : '-'}{formatMGA(item.amount)}
+                                    </span>
+                                    <span className={`px-1.5 py-0.2 rounded text-[8px] uppercase font-bold leading-none shrink-0 ${
+                                      item.type === 'Entrée' || item.type === 'Cotisation' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                                    }`}>
+                                      {item.type}
+                                    </span>
+                                  </div>
+                                  {item.memberName && item.type !== 'Cotisation' && (
+                                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1 truncate">Membre: {item.memberName}</p>
+                                  )}
+                                  <p className="text-[9px] sm:text-[10px] text-gray-500 mt-1 font-mono">
+                                    {item.date ? new Date(item.date).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                                <button 
+                                  onClick={() => startEdit(item)}
+                                  className="p-1.5 hover:bg-white/10 rounded-lg text-blue-400 transition-colors cursor-pointer"
+                                  title="Modifier"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    if (confirmDeleteId === item.id) {
+                                      handleDelete(item.id);
+                                    } else {
+                                      setConfirmDeleteId(item.id);
+                                      setTimeout(() => setConfirmDeleteId(null), 3000);
+                                    }
+                                  }}
+                                  className={`p-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                                    confirmDeleteId === item.id 
+                                      ? "bg-red-600 text-white animate-pulse px-2" 
+                                      : "hover:bg-white/10 text-red-500"
+                                  }`}
+                                  title={confirmDeleteId === item.id ? "Confirmer la suppression" : "Supprimer"}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  {confirmDeleteId === item.id && <span className="text-[8px] font-bold uppercase hidden xs:inline">Confirmer</span>}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column (lg:col-span-5) - Cotisations and Dues tracker */}
+                  <div className="lg:col-span-5 space-y-4 sm:space-y-6 bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10">
+                    <h3 className="text-base sm:text-xl font-bold flex items-center gap-2 sm:gap-3 border-b border-white/5 pb-3 sm:pb-4">
+                      <Users className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-red-500" />
+                      État des Cotisations {new Date().getFullYear()}
+                    </h3>
+
+                    {/* Dues Stats Summary */}
+                    <div className="grid grid-cols-2 gap-3 bg-black/40 p-3 sm:p-4 rounded-2xl border border-white/5">
+                      <div className="text-left">
+                        <p className="text-[9px] text-gray-500 font-mono uppercase tracking-widest font-bold mb-1">Actifs</p>
+                        <p className="text-base sm:text-lg font-bold text-white">{bikersList.length}</p>
+                      </div>
+                      <div className="text-left border-l border-white/10 pl-3">
+                        <p className="text-[9px] text-green-500 font-mono uppercase tracking-widest font-bold mb-1">Payés</p>
+                        <p className="text-base sm:text-lg font-bold text-green-400">
+                          {memberDues.filter(m => m.paid).length}
+                        </p>
+                      </div>
+                      <div className="text-left border-t border-white/10 pt-2 mt-1">
+                        <p className="text-[9px] text-red-500 font-mono uppercase tracking-widest font-bold mb-1">En Retard</p>
+                        <p className="text-base sm:text-lg font-bold text-red-400">
+                          {memberDues.filter(m => !m.paid).length}
+                        </p>
+                      </div>
+                      <div className="text-left border-t border-l border-white/10 pl-3 pt-2 mt-1">
+                        <p className="text-[9px] text-gray-500 font-mono uppercase tracking-widest font-bold mb-1 font-semibold">Volume (Ar)</p>
+                        <p className="text-base sm:text-lg font-bold text-green-400">{formatMGA(treasuryStats.cotisations)}</p>
+                      </div>
+                    </div>
+
+                    {/* Cotisations Scrollable Table */}
+                    <div className="bg-black/20 rounded-2xl border border-white/5 overflow-hidden">
+                      <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="sticky top-0 bg-zinc-900/95 backdrop-blur-md z-10">
+                            <tr className="border-b border-white/5">
+                              <th className="p-3 sm:p-4 text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-500 font-mono font-bold">Membre</th>
+                              <th className="p-3 sm:p-4 text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-500 font-mono font-bold">Statut</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {memberDues.map((due, idx) => (
+                              <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                <td className="p-3 sm:p-4 font-bold text-[11px] sm:text-xs uppercase tracking-wide text-white/80 group-hover:text-white truncate max-w-[120px]">{due.name}</td>
+                                <td className="p-3 sm:p-4">
+                                  {due.paid ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-green-500/10 text-green-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest border border-green-500/20">
+                                      <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> Payé
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-red-500/10 text-red-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest border border-red-500/20">
+                                      <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> En retard
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            ) : (
+              <div className={`grid grid-cols-1 ${currentConfig.readOnly ? '' : 'lg:grid-cols-2'} gap-16`}>
             {/* Form */}
             {!currentConfig.readOnly && (
               <div className="space-y-8">
@@ -761,6 +1141,11 @@ export default function AdminDashboard() {
               <form ref={formRef} onSubmit={handleSubmit} className="space-y-6 bg-white/5 p-8 rounded-3xl border border-white/10">
                 {currentConfig.fields?.map((field) => {
                   const isAutoStat = activeTab === 'stats' && field.name === 'value' && formData.label === 'Membres actifs';
+                  
+                  // Hide memberName field in treasury tab if transaction type is not Cotisation
+                  if (activeTab === 'treasury' && field.name === 'memberName' && formData.type !== 'Cotisation') {
+                    return null;
+                  }
                   
                   // Dynamically update options for treasury or contacts member selection
                   const fieldOptions = field.name === 'memberName' && (activeTab === 'treasury' || activeTab === 'members_contacts')
@@ -829,7 +1214,7 @@ export default function AdminDashboard() {
                                 const val = e.target.value;
                                 const updates: any = { [field.name]: val };
                                 if (activeTab === 'treasury' && field.name === 'type' && val === 'Cotisation') {
-                                  updates.amount = 50000;
+                                  updates.amount = 100000;
                                   updates.description = "Cotisation annuelle";
                                 }
                                 setFormData({ ...formData, ...updates });
@@ -1053,79 +1438,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {activeTab === 'treasury' && (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-8 glass rounded-3xl border-white/10">
-                      <div className="flex items-center gap-3 text-green-500 mb-4">
-                        <ArrowUpRight className="w-5 h-5" />
-                        <span className="text-xs text-gray-500 uppercase tracking-widest font-mono font-bold">Total Entrées</span>
-                      </div>
-                      <div className="text-2xl font-bold text-white tracking-tight">{formatMGA(treasuryStats.income)}</div>
-                    </div>
-                    <div className="p-8 glass rounded-3xl border-white/10 shadow-2xl">
-                      <div className="flex items-center gap-3 text-red-500 mb-4">
-                        <ArrowDownRight className="w-5 h-5" />
-                        <span className="text-xs text-gray-500 uppercase tracking-widest font-mono font-bold">Total Sorties</span>
-                      </div>
-                      <div className="text-2xl font-bold text-white tracking-tight">{formatMGA(treasuryStats.expenses)}</div>
-                    </div>
-                    <div className="p-8 glass rounded-3xl border-red-500/30 bg-red-500/5 shadow-2xl shadow-red-500/10">
-                      <div className="flex items-center gap-3 text-red-500 mb-4">
-                        <Wallet className="w-5 h-5" />
-                        <span className="text-xs text-gray-500 uppercase tracking-widest font-mono font-bold">Solde Actuel</span>
-                      </div>
-                      <div className="text-2xl font-bold text-white tracking-tight">{formatMGA(treasuryStats.balance)}</div>
-                    </div>
-                  </div>
 
-                  <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-2xl font-bold flex items-center gap-4">
-                      <Users className="w-6 h-6 text-red-500" />
-                      État des Cotisations {new Date().getFullYear()}
-                    </h3>
-                    <button
-                      onClick={exportTreasuryReportToExcel}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-green-600/20"
-                    >
-                      <Save className="w-4 h-4" />
-                      Exporter Rapport Complet
-                    </button>
-                  </div>
-                  <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
-                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="sticky top-0 bg-zinc-900/95 backdrop-blur-md z-10">
-                          <tr className="border-b border-white/10">
-                            <th className="p-6 text-[11px] uppercase tracking-[0.3em] text-gray-500 font-mono font-bold">Membre</th>
-                            <th className="p-6 text-[11px] uppercase tracking-[0.3em] text-gray-500 font-mono font-bold">Statut</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {memberDues.map((due, idx) => (
-                            <tr key={idx} className="border-b border-white/5 hover:bg-white/10 transition-colors group">
-                              <td className="p-6 font-bold text-sm uppercase tracking-wide text-white/90 group-hover:text-white">{due.name}</td>
-                              <td className="p-6">
-                                {due.paid ? (
-                                  <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 text-green-500 text-[11px] font-bold uppercase tracking-widest border border-green-500/20">
-                                    <Check className="w-3.5 h-3.5" /> Payé
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold uppercase tracking-widest border border-red-500/20">
-                                    <X className="w-3.5 h-3.5" /> En retard
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold">
@@ -1192,7 +1505,12 @@ export default function AdminDashboard() {
                               )}
                               <div>
                         <div className="flex items-center gap-3 mb-1">
-                          <h4 className="font-bold text-lg">{String(item.name || item.memberName || item.respondentName || item.title || item.label || 'Sans nom')}</h4>
+                          <h4 className="font-bold text-lg">
+                            {activeTab === 'treasury' 
+                              ? (item.type === 'Cotisation' ? `Cotisation - ${item.memberName || 'Inconnu'}` : (item.description || 'Transaction'))
+                              : String(item.name || item.memberName || item.respondentName || item.title || item.label || 'Sans nom')
+                            }
+                          </h4>
                           {(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && (
                             <span className="px-3 py-1 bg-red-600 text-white text-[10px] font-mono font-bold uppercase rounded-full shadow-lg shadow-red-600/30">Nouveau</span>
                           )}
@@ -1216,15 +1534,21 @@ export default function AdminDashboard() {
                         ) : activeTab === 'treasury' ? (
                           <div className="space-y-1">
                             <div className="flex items-center gap-3">
-                              <span className="font-bold text-xl">{formatMGA(item.amount)}</span>
+                              <span className={`font-bold text-xl ${
+                                item.type === 'Entrée' || item.type === 'Cotisation' ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {item.type === 'Entrée' || item.type === 'Cotisation' ? '+' : '-'}{formatMGA(item.amount)}
+                              </span>
                               <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
                                 item.type === 'Entrée' || item.type === 'Cotisation' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
                               }`}>
                                 {item.type}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-400">{item.description}</p>
-                            {item.memberName && (
+                            {item.type === 'Cotisation' && item.description && item.description !== 'Cotisation annuelle' && (
+                              <p className="text-sm text-gray-400">{item.description}</p>
+                            )}
+                            {item.memberName && item.type !== 'Cotisation' && (
                               <div className="flex items-center gap-2 mt-1">
                                 <Users className="w-3 h-3 text-red-500/50" />
                                 <p className="text-xs text-red-500/70 font-medium">Membre: {item.memberName}</p>
@@ -1318,15 +1642,15 @@ export default function AdminDashboard() {
                           </div>
                         ) : (
                           <p className="text-sm text-gray-500">
-                            {activeTab === 'shop' ? formatMGA(item.price) : activeTab === 'agenda' ? `PAF: ${formatMGA(item.paf)}` : activeTab === 'treasury' ? item.date : String(item.date || item.type || item.role || '')}
+                            {activeTab === 'shop' ? formatMGA(item.price) : activeTab === 'agenda' ? `PAF: ${formatMGA(item.paf)}` : activeTab === 'treasury' ? '' : String(item.date || item.type || item.role || '')}
                             {activeTab === 'stats' && item.label === 'Membres actifs' && ` (Auto: ${bikerCount})`}
                           </p>
                         )}
                         {(activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'treasury' || activeTab === 'surveys') && (
                           <p className="text-[10px] text-gray-600 mt-2 font-mono">
-                            {activeTab === 'treasury' ? `Transaction du ${new Date(item.date).toLocaleDateString('fr-FR')}` : 
-                             activeTab === 'surveys' ? `Avis reçu le ${new Date(item.createdAt).toLocaleString('fr-FR')}` :
-                             `Reçu le ${new Date(item.createdAt).toLocaleString('fr-FR')}`}
+                            {activeTab === 'treasury' ? `Transaction du ${item.date ? new Date(item.date).toLocaleDateString('fr-FR') : 'Date inconnue'}` : 
+                             activeTab === 'surveys' ? `Avis reçu le ${item.createdAt ? new Date(item.createdAt).toLocaleString('fr-FR') : 'Date inconnue'}` :
+                             `Reçu le ${item.createdAt ? new Date(item.createdAt).toLocaleString('fr-FR') : 'Date inconnue'}`}
                           </p>
                         )}
                       </div>
@@ -1379,6 +1703,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   </div>
