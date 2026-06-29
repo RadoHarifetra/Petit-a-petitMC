@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { Trophy, RefreshCw, Zap, Database } from "lucide-react";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { raceDb, isRaceManagerConfigured } from "../firebase-race-manager";
+import raceConfig from "../race-manager-config.json";
 import { db } from "../firebase";
 
 function shortenCategory(cat: string): string {
@@ -27,6 +28,19 @@ function shortenCategory(cat: string): string {
   return short;
 }
 
+function formatTime(sec: number | string | undefined | null): string {
+  if (sec === undefined || sec === null || sec === "") return "--:--";
+  const num = typeof sec === "number" ? sec : parseFloat(sec);
+  if (isNaN(num)) return String(sec);
+  
+  if (num < 60) {
+    return `${num.toFixed(3)}s`;
+  }
+  const minutes = Math.floor(num / 60);
+  const seconds = num % 60;
+  return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
+}
+
 interface ItemRanking {
   id: string;
   name: string;
@@ -39,6 +53,8 @@ interface ItemRanking {
   gap?: string;
   points?: number;
   status?: "active" | "pit" | "out";
+  chronos?: string[];
+  bestLapNumeric?: number | null;
 }
 
 interface PartnerSponsor {
@@ -52,11 +68,11 @@ interface PartnerSponsor {
 
 // Fallback rankings
 const DEMO_RANKINGS: ItemRanking[] = [
-  { id: "r1", name: "Dino Petit", number: "99", bike: "KTM 450 SX-F", category: "MX1 Pro", position: 1, bestLap: "1:42.53", totalLaps: 12, gap: "Leader", points: 25, status: "active" },
-  { id: "r2", name: "Marc Petit", number: "12", bike: "Yamaha YZ450F", category: "MX1 Pro", position: 2, bestLap: "1:43.12", totalLaps: 12, gap: "+5.12s", points: 22, status: "active" },
-  { id: "r3", name: "Dany R.", number: "27", bike: "Husqvarna FC 350", category: "MX2", position: 1, bestLap: "1:44.02", totalLaps: 11, gap: "+14.89s", points: 25, status: "active" },
-  { id: "r4", name: "Rado Harif", number: "77", bike: "Honda CRF450R", category: "MX1 Pro", position: 3, bestLap: "1:44.29", totalLaps: 12, gap: "+17.21s", points: 20, status: "pit" },
-  { id: "r5", name: "Nico Petit", number: "4", bike: "GasGas MC 250F", category: "MX2", position: 2, bestLap: "1:46.10", totalLaps: 11, gap: "+29.40s", points: 22, status: "active" }
+  { id: "r1", name: "Dino Petit", number: "99", bike: "KTM 450 SX-F", category: "MX1 Pro", position: 1, bestLap: "1:42.53", totalLaps: 12, gap: "Leader", points: 25, status: "active", chronos: ["1:44.89", "1:43.76", "1:42.53", "1:43.12", "1:42.98"] },
+  { id: "r2", name: "Marc Petit", number: "12", bike: "Yamaha YZ450F", category: "MX1 Pro", position: 2, bestLap: "1:43.12", totalLaps: 12, gap: "+5.12s", points: 22, status: "active", chronos: ["1:46.30", "1:44.15", "1:43.12", "1:43.90"] },
+  { id: "r3", name: "Dany R.", number: "27", bike: "Husqvarna FC 350", category: "MX2", position: 1, bestLap: "1:44.02", totalLaps: 11, gap: "+14.89s", points: 25, status: "active", chronos: ["1:47.80", "1:45.60", "1:44.02", "1:45.10"] },
+  { id: "r4", name: "Rado Harif", number: "77", bike: "Honda CRF450R", category: "MX1 Pro", position: 3, bestLap: "1:44.29", totalLaps: 12, gap: "+17.21s", points: 20, status: "pit", chronos: ["1:49.20", "1:46.45", "1:44.29"] },
+  { id: "r5", name: "Nico Petit", number: "4", bike: "GasGas MC 250F", category: "MX2", position: 2, bestLap: "1:46.10", totalLaps: 11, gap: "+29.40s", points: 22, status: "active", chronos: ["1:51.10", "1:48.30", "1:46.10"] }
 ];
 
 const DEMO_PARTNERS: PartnerSponsor[] = [
@@ -74,65 +90,150 @@ export default function LiveRace() {
   const [activeCategory, setActiveCategory] = useState<string>("Tous");
   const [rankings, setRankings] = useState<ItemRanking[]>([]);
   const [loading, setLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isEmptyCollection, setIsEmptyCollection] = useState(false);
   const [isUsingDemo, setIsUsingDemo] = useState(!isConfigured);
   const [partnersList, setPartnersList] = useState<PartnerSponsor[]>([]);
+  const [expandedPilotId, setExpandedPilotId] = useState<string | null>(null);
 
   // Listeners
   useEffect(() => {
     if (!isConfigured || !raceDb) {
       setRankings(DEMO_RANKINGS);
       setIsUsingDemo(true);
+      setConnectionError(null);
+      setIsEmptyCollection(false);
     } else {
       setLoading(true);
-      setIsUsingDemo(false);
+      setConnectionError(null);
+      setIsEmptyCollection(false);
 
-      const qRankings = query(collection(raceDb, "pilots"));
-      const unsubRankings = onSnapshot(qRankings, (snapshot) => {
-        if (!snapshot.empty) {
-          const list = snapshot.docs.map((doc, idx) => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              name: data.name || data.pseudo || "Pilote",
-              number: data.number || data.num || "N/A",
-              bike: (typeof data.bike === "string" ? data.bike : null) || 
-                    (typeof data.moto === "string" ? data.moto : null) || 
-                    (typeof data.brand === "string" ? data.brand : null) || 
-                    (typeof data.marque === "string" ? data.marque : null) || 
-                    (typeof data.model === "string" ? data.model : null) || 
-                    (typeof data.modele === "string" ? data.modele : null) || 
-                    (typeof data.constructeur === "string" ? data.constructeur : null) || 
-                    (typeof data.constructor === "string" ? data.constructor : null) || 
-                    (typeof data.machine === "string" ? data.machine : null) || 
-                    (typeof data.vehicle === "string" ? data.vehicle : null) || 
-                    (typeof data.vehicule === "string" ? data.vehicule : null) || 
-                    (typeof data.chassis === "string" ? data.chassis : null) || 
-                    (typeof data.motorcycle === "string" ? data.motorcycle : null) || 
-                    (typeof data.bikeModel === "string" ? data.bikeModel : null) || 
-                    (typeof data.motoModel === "string" ? data.motoModel : null) || 
-                    "N/A",
-              category: shortenCategory(data.category || data.classe || "Non-classé"),
-              position: data.position || data.rank || idx + 1,
-              bestLap: data.bestLap || data.chrono || "--:--",
-              totalLaps: data.totalLaps || data.laps || 0,
-              gap: data.gap || (idx === 0 ? "Leader" : `+${idx * 1.5}s`),
-              status: data.status || "active",
-              points: data.points || 0
-            } as ItemRanking;
-          }).sort((a, b) => a.position - b.position);
-          
-          setRankings(list);
-        } else {
+      const qPilots = query(collection(raceDb, "pilots"));
+      const qRaces = query(collection(raceDb, "races"));
+
+      let pilotsList: any[] = [];
+      let racesList: any[] = [];
+      let pilotsLoaded = false;
+      let racesLoaded = false;
+
+      const combineData = (rawPilots: any[], rawRaces: any[]) => {
+        if (rawPilots.length === 0) {
           setRankings(DEMO_RANKINGS);
+          setIsUsingDemo(true);
+          setIsEmptyCollection(true);
+          setLoading(false);
+          return;
         }
+
+        // Map races by pilotId
+        const racesByPilot: { [pilotId: string]: any[] } = {};
+        rawRaces.forEach(run => {
+          if (!run.pilotId) return;
+          if (!racesByPilot[run.pilotId]) {
+            racesByPilot[run.pilotId] = [];
+          }
+          racesByPilot[run.pilotId].push(run);
+        });
+
+        const list = rawPilots.map((pilotDoc) => {
+          const pilotId = pilotDoc.id;
+          const pilotRuns = racesByPilot[pilotId] || [];
+          
+          // Get completed runs and sort by passageNumber asc
+          const completedRuns = pilotRuns
+            .filter(run => run.status === "completed" && run.time !== undefined && run.time !== null)
+            .sort((a, b) => (a.passageNumber || 0) - (b.passageNumber || 0));
+
+          // Extract formatted chronos (laps), e.g. ["9.123s", "10.050s"]
+          const chronosFormatted = completedRuns.map(run => formatTime(run.time));
+          
+          // Find best time
+          const bestTimeVal = completedRuns.length > 0 
+            ? Math.min(...completedRuns.map(run => {
+                const t = typeof run.time === "number" ? run.time : parseFloat(run.time);
+                return isNaN(t) ? Infinity : t;
+              }).filter(t => t !== Infinity))
+            : null;
+
+          const bestLapStr = bestTimeVal !== null && bestTimeVal !== Infinity ? formatTime(bestTimeVal) : "--:--";
+
+          const bikeModel = pilotDoc.motorcycle || pilotDoc.bike || pilotDoc.moto || "N/A";
+
+          return {
+            id: pilotId,
+            name: pilotDoc.name || pilotDoc.pseudo || "Pilote",
+            number: pilotDoc.number || pilotDoc.num || "N/A",
+            bike: bikeModel,
+            category: shortenCategory(pilotDoc.category || pilotDoc.classe || "Non-classé"),
+            bestLap: bestLapStr,
+            bestLapNumeric: bestTimeVal === Infinity ? null : bestTimeVal,
+            totalLaps: completedRuns.length,
+            status: completedRuns.length > 0 ? "active" : "pit",
+            chronos: chronosFormatted,
+            points: 0
+          } as ItemRanking;
+        });
+
+        // SORT BY BEST TIME (lower is better, pilots with no time go to the bottom)
+        const sortedList = list.sort((a, b) => {
+          if (a.bestLapNumeric === null && b.bestLapNumeric === null) return 0;
+          if (a.bestLapNumeric === null) return 1;
+          if (b.bestLapNumeric === null) return -1;
+          return a.bestLapNumeric - b.bestLapNumeric;
+        });
+
+        // Calculate positions and gaps relative to the general leader
+        const listWithPositions = sortedList.map((item, idx) => {
+          let gapStr = "--";
+          if (idx === 0) {
+            gapStr = item.bestLapNumeric !== null ? "Leader" : "--";
+          } else if (item.bestLapNumeric !== null && sortedList[0].bestLapNumeric !== null) {
+            const diff = item.bestLapNumeric - sortedList[0].bestLapNumeric;
+            gapStr = `+${diff.toFixed(3)}s`;
+          }
+          return {
+            ...item,
+            position: item.bestLapNumeric !== null ? idx + 1 : 999, // Unranked at the end
+            gap: gapStr
+          } as ItemRanking;
+        });
+
+        setRankings(listWithPositions);
+        setIsUsingDemo(false);
+        setIsEmptyCollection(false);
         setLoading(false);
+      };
+
+      const unsubPilots = onSnapshot(qPilots, (snapshot) => {
+        pilotsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        pilotsLoaded = true;
+        if (racesLoaded) {
+          combineData(pilotsList, racesList);
+        } else {
+          combineData(pilotsList, []);
+        }
       }, (error) => {
         console.warn("Could not load real-time 'pilots'. Using demo standby.", error);
+        setConnectionError(error?.message || String(error));
         setRankings(DEMO_RANKINGS);
+        setIsUsingDemo(true);
         setLoading(false);
       });
 
-      return () => unsubRankings();
+      const unsubRaces = onSnapshot(qRaces, (snapshot) => {
+        racesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        racesLoaded = true;
+        if (pilotsLoaded) {
+          combineData(pilotsList, racesList);
+        }
+      }, (error) => {
+        console.warn("Could not load real-time 'races'.", error);
+      });
+
+      return () => {
+        unsubPilots();
+        unsubRaces();
+      };
     }
   }, [isConfigured]);
 
@@ -159,9 +260,28 @@ export default function LiveRace() {
 
   // Filters mapping
   const categories = ["Tous", ...Array.from(new Set(rankings.map(r => r.category)))];
-  const filteredRankings = activeCategory === "Tous" 
+  const baseFilteredRankings = activeCategory === "Tous" 
     ? rankings 
     : rankings.filter(r => r.category === activeCategory);
+
+  // Map to add dynamic position and gap relative to the active category's leader
+  const activeRankings = baseFilteredRankings.map((item, idx) => {
+    const displayPos = idx + 1;
+    let displayGap = "--";
+    
+    if (idx === 0) {
+      displayGap = item.bestLapNumeric !== null && item.bestLapNumeric !== undefined ? "Leader" : "--";
+    } else if (item.bestLapNumeric !== null && item.bestLapNumeric !== undefined && baseFilteredRankings[0].bestLapNumeric !== null && baseFilteredRankings[0].bestLapNumeric !== undefined) {
+      const diff = item.bestLapNumeric - baseFilteredRankings[0].bestLapNumeric;
+      displayGap = `+${diff.toFixed(3)}s`;
+    }
+
+    return {
+      ...item,
+      displayPosition: displayPos,
+      displayGap: displayGap
+    };
+  });
 
   const sponsors = partnersList.filter(p => p.type === "Sponsor");
   const partnersOnly = partnersList.filter(p => !p.type || p.type === "Partenaire");
@@ -180,13 +300,40 @@ export default function LiveRace() {
                 <Zap className="w-7 h-7 text-red-500" />
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2 mb-1.5 font-mono">
                   <span className="flex h-2 w-2 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    {connectionError ? (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </>
+                    ) : isEmptyCollection ? (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </>
+                    ) : isUsingDemo ? (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </>
+                    )}
                   </span>
-                  <span className="text-xs uppercase tracking-widest text-[#999] font-mono">
-                    {isUsingDemo ? "Standby de Démo" : "Connexion Temps Réel Active"}
+                  <span className={`text-xs uppercase tracking-widest font-bold ${
+                    connectionError ? "text-red-400" :
+                    isEmptyCollection ? "text-amber-400" :
+                    isUsingDemo ? "text-yellow-400" :
+                    "text-green-400"
+                  }`}>
+                    {connectionError ? "Erreur de Connexion" :
+                     isEmptyCollection ? "Base de données vide" :
+                     isUsingDemo ? "Standby de Démo" :
+                     "Connexion Temps Réel Active"}
                   </span>
                 </div>
                 <h1 className="font-display text-3xl md:text-4xl uppercase tracking-tighter">
@@ -234,8 +381,76 @@ export default function LiveRace() {
           </div>
         </div>
 
+        {/* Connection Error Banner */}
+        {connectionError && (
+          <div className="mb-10 bg-gradient-to-r from-red-950/40 to-black border border-red-500/30 rounded-3xl p-6 md:p-8 flex flex-col items-start gap-4 backdrop-blur-md">
+            <div className="flex gap-4 items-start w-full">
+              <div className="p-3 bg-red-500/15 rounded-2xl border border-red-500/30 shrink-0 text-red-500">
+                <Database className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <h3 className="font-bold text-lg text-white">
+                  Impossible de charger les données du "Race Manager"
+                </h3>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  L'application a tenté de se connecter à la base de données secondaire de votre Race Manager (<code className="text-red-400 px-1 py-0.5 rounded bg-red-500/10 font-mono text-xs">{raceConfig.firestoreDatabaseId}</code>), mais une erreur est survenue :
+                </p>
+                <div className="p-3.5 bg-black/60 rounded-xl border border-white/5 font-mono text-xs text-red-400 break-all">
+                  Firebase error: {connectionError}
+                </div>
+                <div className="pt-2 text-sm text-gray-400 space-y-2">
+                  <p className="font-semibold text-white">🔑 Causes fréquentes & solutions :</p>
+                  <ul className="list-disc pl-5 space-y-2 mt-1 text-xs text-gray-300">
+                    <li>
+                      <strong className="text-white font-semibold">Règles de sécurité Firestore (Permissions) :</strong> La base de données secondaire de votre "Race Manager" bloque l'accès en lecture. À la racine du projet "Race Manager", ouvrez le fichier <code className="text-white px-1 py-0.5 rounded bg-white/5 font-mono">firestore.rules</code> et assurez-vous de permettre l'accès en lecture publique pour la collection des pilotes, par exemple :
+                      <pre className="mt-1.5 p-2 bg-black/40 rounded border border-white/5 text-gray-400 font-mono text-[10px] overflow-x-auto text-left whitespace-pre-wrap">
+{`match /pilots/{id} {
+  allow read: if true;
+}`}
+                      </pre>
+                    </li>
+                    <li>
+                      <strong className="text-white font-semibold">Clés de configuration :</strong> Vérifiez que les identifiants copiés dans <code className="text-white px-1 font-mono rounded bg-white/5">src/race-manager-config.json</code> sont bien ceux de l'application "Petit à Petit - Race Manager" et que le projet est actif.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty Collection Warning */}
+        {isEmptyCollection && (
+          <div className="mb-10 bg-gradient-to-r from-amber-950/40 to-black border border-amber-500/30 rounded-3xl p-6 md:p-8 flex flex-col items-start gap-4 backdrop-blur-md">
+            <div className="flex gap-4 items-start w-full">
+              <div className="p-3 bg-amber-500/15 rounded-2xl border border-amber-500/30 shrink-0 text-amber-500">
+                <Database className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <h3 className="font-bold text-lg text-white">
+                  Connexion établie, mais la collection est vide !
+                </h3>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  L'application s'est correctement connectée à la base de données secondaire (<code className="text-amber-400 px-1 py-0.5 rounded bg-amber-500/10 font-mono text-xs">{raceConfig.firestoreDatabaseId}</code>), mais la collection de documents <code className="text-amber-400 px-1 py-0.5 rounded bg-amber-500/10 font-mono text-xs">"pilots"</code> est vide ou inexistante.
+                </p>
+                <div className="pt-2 text-sm text-gray-400 space-y-2">
+                  <p className="font-semibold text-white">🔎 Que faire ?</p>
+                  <ul className="list-disc pl-5 space-y-2 mt-1 text-xs text-gray-300">
+                    <li>
+                      <strong className="text-white font-medium">Créer des pilotes dans Race Manager :</strong> Ouvrez votre application "Race Manager" et assurez-vous d'avoir enregistré des pilotes pour la course. Ils s'afficheront automatiquement ici dès qu'ils seront ajoutés.
+                    </li>
+                    <li>
+                      <strong className="text-white font-medium">Nom de la collection différent :</strong> Si l'application Race Manager utilise un nom de collection différent de <code className="text-white px-1 font-mono rounded bg-white/5">"pilots"</code> (comme <code className="text-white px-1 font-mono rounded bg-white/5">"pilotes"</code> ou <code className="text-white px-1 font-mono rounded bg-white/5">"classement"</code>), cela explique pourquoi aucun document n'est trouvé.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Setup instruction if using standy demo */}
-        {isUsingDemo && (
+        {isUsingDemo && !connectionError && !isEmptyCollection && (
           <div className="mb-10 bg-gradient-to-r from-red-950/40 to-black border border-red-500/30 rounded-3xl p-6 md:p-8 flex flex-col items-start justify-between gap-6">
             <div className="flex gap-4 items-start">
               <Database className="w-8 h-8 text-red-500 shrink-0 mt-1" />
@@ -301,7 +516,7 @@ export default function LiveRace() {
               <RefreshCw className="w-8 h-8 text-red-500 animate-spin" />
               <p className="text-sm font-mono text-gray-500 uppercase tracking-widest">Récupération des chronos ...</p>
             </div>
-          ) : filteredRankings.length === 0 ? (
+          ) : activeRankings.length === 0 ? (
             <div className="py-20 text-center text-gray-500 border border-dashed border-white/10 rounded-2xl">
               <p>Aucun pilote en piste sous cette catégorie.</p>
             </div>
@@ -322,117 +537,214 @@ export default function LiveRace() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {filteredRankings.map((item, index) => {
+                    {activeRankings.map((item, index) => {
                       let posBg = "bg-white/5 text-gray-400";
-                      if (item.position === 1) posBg = "bg-yellow-500/20 text-yellow-500 border border-yellow-500/20";
-                      if (item.position === 2) posBg = "bg-slate-300/20 text-slate-300 border border-slate-300/10";
-                      if (item.position === 3) posBg = "bg-amber-700/20 text-amber-500 border border-amber-500/10";
+                      if (item.displayPosition === 1) posBg = "bg-yellow-500/20 text-yellow-500 border border-yellow-500/20";
+                      if (item.displayPosition === 2) posBg = "bg-slate-300/20 text-slate-300 border border-slate-300/10";
+                      if (item.displayPosition === 3) posBg = "bg-amber-700/20 text-amber-500 border border-amber-500/10";
+
+                      const isExpanded = expandedPilotId === item.id;
 
                       return (
-                        <tr 
-                          key={item.id} 
-                          className="group hover:bg-white/[0.02]"
-                        >
-                          <td className="py-4">
-                            <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-mono font-bold ${posBg}`}>
-                              {item.position}
-                            </span>
-                          </td>
-                          <td className="py-4">
-                            <div className="flex items-center gap-3">
-                              <span className="font-mono bg-red-600/15 border border-red-500/10 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-tight text-white">
-                                #{item.number}
+                        <React.Fragment key={item.id}>
+                          <tr 
+                            className={`group hover:bg-white/[0.02] cursor-pointer transition-colors ${isExpanded ? 'bg-white/[0.01]' : ''}`}
+                            onClick={() => setExpandedPilotId(isExpanded ? null : item.id)}
+                          >
+                            <td className="py-4">
+                              <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-mono font-bold ${posBg}`}>
+                                {item.displayPosition}
                               </span>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-white group-hover:text-red-500 transition-colors">
-                                  {item.name}
+                            </td>
+                            <td className="py-4">
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono bg-red-600/15 border border-red-500/10 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-tight text-white">
+                                  #{item.number}
                                 </span>
-                                {item.status === "pit" && (
-                                  <span className="text-[10px] font-mono text-amber-500 font-bold uppercase mt-0.5">⏱ Stand</span>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-white group-hover:text-red-500 transition-colors">
+                                    {item.name}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    {item.status === "pit" && (
+                                      <span className="text-[10px] font-mono text-amber-500 font-bold uppercase">⏱ Stand</span>
+                                    )}
+                                    {activeCategory !== "Tous" && (
+                                      <span className="text-[9px] font-mono text-gray-500 font-bold uppercase bg-white/5 border border-white/5 px-1 py-0.2 rounded">Gén: #{item.position}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 font-mono text-xs text-gray-400">
+                              {item.bike}
+                            </td>
+                            <td className="py-4">
+                              <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-400 font-bold">
+                                {item.category}
+                              </span>
+                            </td>
+                            <td className="py-4 text-right">
+                              <div className="flex flex-col items-end">
+                                <span className="font-mono font-bold text-red-500">
+                                  {item.bestLap}
+                                </span>
+                                {item.chronos && item.chronos.length > 0 ? (
+                                  <span className="text-[9px] font-mono text-gray-500 group-hover:text-red-400 font-medium transition-colors mt-0.5">
+                                    {item.chronos.length} chrono{item.chronos.length > 1 ? 's' : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-mono text-gray-600 mt-0.5">Aucun tour</span>
                                 )}
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-4 font-mono text-xs text-gray-400">
-                            {item.bike}
-                          </td>
-                          <td className="py-4">
-                            <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-400 font-bold">
-                              {item.category}
-                            </span>
-                          </td>
-                          <td className="py-4 font-mono font-bold text-right text-red-500 transition-transform origin-right">
-                            {item.bestLap}
-                          </td>
-                          <td className="py-4 font-mono text-xs text-right text-gray-500">
-                            {item.gap}
-                          </td>
-                        </tr>
+                            </td>
+                            <td className="py-4 font-mono text-xs text-right text-gray-500">
+                              {item.displayGap}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-white/[0.01]">
+                              <td colSpan={6} className="px-4 py-3 border-b border-white/5">
+                                <div className="bg-black/40 border border-white/5 rounded-2xl p-4">
+                                  <h4 className="text-xs uppercase tracking-widest text-red-500 font-mono font-bold mb-3 flex items-center gap-2">
+                                    <span>⏱️</span> Historique des Chronos (Tours)
+                                  </h4>
+                                  {item.chronos && item.chronos.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      {item.chronos.map((chrono, idx) => {
+                                        const isBest = chrono === item.bestLap;
+                                        return (
+                                          <div 
+                                            key={idx} 
+                                            className={`px-3 py-1.5 rounded-xl border font-mono text-xs flex items-center gap-2 transition-all ${
+                                              isBest 
+                                                ? "bg-red-600/20 border-red-500/40 text-red-400 font-bold shadow-lg shadow-red-500/5" 
+                                                : "bg-white/5 border-white/5 text-gray-300"
+                                            }`}
+                                          >
+                                            <span className="text-[10px] text-gray-500 font-bold">T{idx + 1} :</span>
+                                            <span>{chrono}</span>
+                                            {isBest && <span className="text-[9px] bg-red-600 text-white px-1 rounded uppercase font-sans font-bold">Best</span>}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-gray-500 italic">Aucun temps au tour enregistré pour le moment.</p>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-
+              
               {/* Mobile View */}
               <div className="md:hidden space-y-3">
-                {filteredRankings.map((item) => {
+                {activeRankings.map((item) => {
                   let posBg = "bg-white/5 text-gray-400";
                   let cardBorder = "border-white/5";
-                  if (item.position === 1) {
+                  if (item.displayPosition === 1) {
                     posBg = "bg-yellow-500/20 text-yellow-500 border border-yellow-500/20";
                     cardBorder = "border-yellow-500/10";
                   }
-                  if (item.position === 2) {
+                  if (item.displayPosition === 2) {
                     posBg = "bg-slate-300/20 text-slate-300 border border-slate-300/10";
                     cardBorder = "border-slate-300/10";
                   }
-                  if (item.position === 3) {
+                  if (item.displayPosition === 3) {
                     posBg = "bg-amber-700/20 text-amber-500 border border-amber-500/10";
                     cardBorder = "border-amber-500/10";
                   }
 
+                  const isExpanded = expandedPilotId === item.id;
+
                   return (
                     <div
                       key={item.id}
-                      className={`p-4 bg-white/[0.02] border ${cardBorder} rounded-2xl flex items-center justify-between gap-4`}
+                      onClick={() => setExpandedPilotId(isExpanded ? null : item.id)}
+                      className={`p-4 bg-white/[0.02] border ${cardBorder} rounded-2xl flex flex-col cursor-pointer transition-all hover:bg-white/[0.04] ${isExpanded ? 'bg-white/[0.04]' : ''}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-xs font-mono font-bold ${posBg}`}>
-                          {item.position}
+                      <div className="flex items-center justify-between gap-4 w-full">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-xs font-mono font-bold ${posBg}`}>
+                            {item.displayPosition}
+                          </div>
+
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono bg-red-600/15 border border-red-500/10 px-1.5 py-0.2 rounded text-[10px] font-bold tracking-tight text-white">
+                                #{item.number}
+                              </span>
+                              <span className="font-bold text-sm text-white truncate max-w-[120px]">
+                                {item.name}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-gray-500 mt-0.5 truncate max-w-[140px]">
+                              {item.bike}
+                            </span>
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-white/5 border border-white/5 text-gray-400 font-bold">
+                                {item.category}
+                              </span>
+                              {item.status === "pit" && (
+                                <span className="text-[9px] font-mono text-amber-500 font-bold uppercase bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded">⏱ Stand</span>
+                              )}
+                              {activeCategory !== "Tous" && (
+                                <span className="text-[9px] font-mono text-gray-500 font-bold uppercase bg-white/5 border border-white/5 px-1 py-0.2 rounded">Gén: #{item.position}</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono bg-red-600/15 border border-red-500/10 px-1.5 py-0.2 rounded text-[10px] font-bold tracking-tight text-white">
-                              #{item.number}
-                            </span>
-                            <span className="font-bold text-sm text-white truncate max-w-[120px]">
-                              {item.name}
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-gray-500 mt-0.5 truncate max-w-[140px]">
-                            {item.bike}
+                        <div className="text-right flex flex-col shrink-0 items-end">
+                          <span className="font-mono font-bold text-red-500 text-sm">
+                            {item.bestLap}
                           </span>
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-white/5 border border-white/5 text-gray-400 font-bold">
-                              {item.category}
+                          <span className="text-[10px] font-mono text-gray-500 mt-0.5">
+                            {item.displayGap}
+                          </span>
+                          {item.chronos && item.chronos.length > 0 && (
+                            <span className="text-[8px] font-mono text-gray-500 mt-1 uppercase">
+                              {item.chronos.length} chrono{item.chronos.length > 1 ? 's' : ''}
                             </span>
-                            {item.status === "pit" && (
-                              <span className="text-[9px] font-mono text-amber-500 font-bold uppercase bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded">⏱ Stand</span>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="text-right flex flex-col shrink-0">
-                        <span className="font-mono font-bold text-red-500 text-sm">
-                          {item.bestLap}
-                        </span>
-                        <span className="text-[10px] font-mono text-gray-500 mt-0.5">
-                          {item.gap}
-                        </span>
-                      </div>
+                      {isExpanded && (
+                        <div className="mt-3 bg-black/40 border border-white/5 rounded-xl p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <h4 className="text-[10px] uppercase tracking-widest text-red-500 font-mono font-bold flex items-center gap-1.5">
+                            <span>⏱️</span> Historique des Chronos (Tours)
+                          </h4>
+                          {item.chronos && item.chronos.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {item.chronos.map((chrono, idx) => {
+                                const isBest = chrono === item.bestLap;
+                                return (
+                                  <div 
+                                    key={idx} 
+                                    className={`px-2 py-1 rounded-lg border font-mono text-[10px] flex items-center gap-1.5 transition-all ${
+                                      isBest 
+                                        ? "bg-red-600/20 border-red-500/40 text-red-400 font-bold" 
+                                        : "bg-white/5 border-white/5 text-gray-400"
+                                    }`}
+                                  >
+                                    <span className="text-[9px] text-gray-500">T{idx + 1}:</span>
+                                    <span>{chrono}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-gray-500 italic">Aucun temps enregistré.</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
