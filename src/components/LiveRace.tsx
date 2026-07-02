@@ -448,21 +448,27 @@ export default function LiveRace() {
 
         const calculatedDuels: ItemDuel[] = [];
         Object.entries(duelsMap).forEach(([secsStr, list]) => {
-          if (list.length >= 2) {
-            const p1 = list[0];
-            const p2 = list[1];
-            
+          for (let i = 0; i < list.length; i += 2) {
+            const p1 = list[i];
+            const p2 = list[i + 1] || null;
+
             let duelStatus: "completed" | "scheduled" | "live" = "scheduled";
-            if (p1.status === "completed" && p2.status === "completed") {
-              duelStatus = "completed";
-            } else if (p1.status === "completed" || p2.status === "completed") {
-              duelStatus = "live";
+            if (p2) {
+              if (p1.status === "completed" && p2.status === "completed") {
+                duelStatus = "completed";
+              } else if (p1.status === "completed" || p2.status === "completed") {
+                duelStatus = "live";
+              }
+            } else {
+              if (p1.status === "completed") {
+                duelStatus = "completed";
+              }
             }
 
             calculatedDuels.push({
-              id: secsStr,
+              id: `${secsStr}-${i}`,
               scheduledTime: p1.scheduledTime,
-              category: p1.category || p2.category,
+              category: p1.category || (p2 ? p2.category : ""),
               passageNumber: p1.passageNumber,
               pilot1: p1,
               pilot2: p2,
@@ -1071,7 +1077,7 @@ export default function LiveRace() {
             
             <div className="flex items-center gap-2 font-mono text-[10px] bg-black/40 border border-white/5 px-3 py-1.5 rounded-xl text-gray-400">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-              <span>{duels.filter(d => activeCategory === "Tous" || d.category === activeCategory).length} Duel(s)</span>
+              <span>{duels.filter(d => activeCategory === "Tous" || d.category === activeCategory).length} Départ(s)</span>
             </div>
           </div>
 
@@ -1094,56 +1100,60 @@ export default function LiveRace() {
                   const isCompleted = duel.status === "completed";
                   const isLive = duel.status === "live";
                   
-                  // Compare times to find the winner
+                  // Compare times to find the winner safely
                   const t1 = duel.pilot1.timeNumeric;
-                  const t2 = duel.pilot2.timeNumeric;
+                  const t2 = duel.pilot2 ? duel.pilot2.timeNumeric : null;
                   const hasWinner = isCompleted && t1 !== null && t2 !== null;
                   const isP1Winner = hasWinner && t1! < t2!;
                   const isP2Winner = hasWinner && t2! < t1!;
-                  const winnerName = isP1Winner ? duel.pilot1.pilotName : isP2Winner ? duel.pilot2.pilotName : null;
+                  const winnerName = isP1Winner 
+                    ? duel.pilot1.pilotName 
+                    : isP2Winner && duel.pilot2 
+                    ? duel.pilot2.pilotName 
+                    : null;
 
                   return (
                     <div 
                       key={duel.id} 
-                      className={`bg-black/45 border rounded-2xl p-4 flex flex-col hover:bg-white/[0.03] transition-all duration-300 ${
+                      className={`bg-black/45 border rounded-2xl p-2.5 min-[380px]:p-3.5 sm:p-4 flex flex-col hover:bg-white/[0.03] transition-all duration-300 ${
                         isCompleted && winnerName
                           ? "border-yellow-500/10 hover:border-yellow-500/20"
                           : "border-white/5 hover:border-red-500/20"
                       }`}
                     >
                       {/* Card Header (Metadata & Status) */}
-                      <div className="flex justify-between items-center border-b border-white/5 pb-2.5 mb-3 font-mono text-[10px] text-gray-400 uppercase tracking-wider">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-red-500" />
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2.5 font-mono text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-500" />
                           <span className="font-bold text-white">{formatScheduledTime(duel.scheduledTime)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="bg-white/5 px-2 py-0.5 rounded text-gray-400 border border-white/5">
+                        <div className="flex items-center gap-1">
+                          <span className="bg-white/5 px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded text-gray-400 border border-white/5">
                             Manche {duel.passageNumber}
                           </span>
-                          <span className="bg-red-500/10 px-2 py-0.5 rounded text-red-400 border border-red-500/10 font-bold">
+                          <span className="bg-red-500/10 px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded text-red-400 border border-red-500/10 font-bold">
                             {duel.category}
                           </span>
                         </div>
                       </div>
 
                       {/* Matchup Body: Grid (1fr auto 1fr) for perfect horizontal balancing on all screens */}
-                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-3 md:gap-4">
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 min-[380px]:gap-2 sm:gap-3 md:gap-4">
                         
                         {/* Pilot 1 */}
-                        <div className={`flex items-center gap-1.5 sm:gap-3 justify-end text-right min-w-0 transition-opacity ${
+                        <div className={`flex items-center gap-1 min-[380px]:gap-2 sm:gap-3 justify-end text-right min-w-0 transition-opacity ${
                           isCompleted && isP2Winner ? 'opacity-40' : 'opacity-100'
                         }`}>
                           <div className="flex flex-col items-end min-w-0">
-                            <span className="font-bold text-[10px] sm:text-xs md:text-sm text-white truncate w-full flex items-center gap-1 justify-end">
-                              {isP1Winner && <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-500 shrink-0 animate-bounce" />}
+                            <span className="font-bold text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm text-white truncate w-full flex items-center gap-1 justify-end">
+                              {isP1Winner && <Trophy className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 text-yellow-500 shrink-0 animate-bounce" />}
                               <span className="truncate">{duel.pilot1.pilotName}</span>
                             </span>
-                            <span className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 truncate w-full font-mono">
+                            <span className="text-[7px] min-[380px]:text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 truncate w-full font-mono">
                               {duel.pilot1.pilotBike}
                             </span>
                             {duel.pilot1.time && (
-                              <span className={`font-mono text-[8px] sm:text-[9px] md:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded mt-1 sm:mt-1.5 ${
+                              <span className={`font-mono text-[7px] min-[380px]:text-[8px] sm:text-[9px] md:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded mt-1 ${
                                 isP1Winner 
                                   ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
                                   : 'bg-white/5 text-gray-400 border border-white/5'
@@ -1154,7 +1164,7 @@ export default function LiveRace() {
                           </div>
                           
                           {/* Number Badge */}
-                          <span className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border transition-all ${
+                          <span className={`w-6 h-6 min-[380px]:w-7 min-[380px]:h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-md min-[380px]:rounded-lg sm:rounded-xl flex items-center justify-center text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border transition-all ${
                             isP1Winner 
                               ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.1)]" 
                               : duel.pilot1.status === "completed" 
@@ -1167,7 +1177,7 @@ export default function LiveRace() {
 
                         {/* VS Bubble */}
                         <div className="flex flex-col items-center justify-center shrink-0">
-                          <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] md:text-xs font-black uppercase tracking-wider font-mono shadow-md border ${
+                          <div className={`w-6 h-6 min-[380px]:w-7 min-[380px]:h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[8px] min-[380px]:text-[9px] sm:text-[10px] md:text-xs font-black uppercase tracking-wider font-mono shadow-md border ${
                             isCompleted
                               ? "bg-white/5 text-gray-500 border-white/5"
                               : isLive
@@ -1179,60 +1189,82 @@ export default function LiveRace() {
                         </div>
 
                         {/* Pilot 2 */}
-                        <div className={`flex items-center gap-1.5 sm:gap-3 justify-start text-left min-w-0 transition-opacity ${
-                          isCompleted && isP1Winner ? 'opacity-40' : 'opacity-100'
-                        }`}>
-                          {/* Number Badge */}
-                          <span className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border transition-all ${
-                            isP2Winner 
-                              ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.1)]" 
-                              : duel.pilot2.status === "completed" 
-                              ? "bg-green-500/10 border-green-500/20 text-green-500"
-                              : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                        {duel.pilot2 ? (
+                          <div className={`flex items-center gap-1 min-[380px]:gap-2 sm:gap-3 justify-start text-left min-w-0 transition-opacity ${
+                            isCompleted && isP1Winner ? 'opacity-40' : 'opacity-100'
                           }`}>
-                            {duel.pilot2.pilotNumber}
-                          </span>
+                            {/* Number Badge */}
+                            <span className={`w-6 h-6 min-[380px]:w-7 min-[380px]:h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-md min-[380px]:rounded-lg sm:rounded-xl flex items-center justify-center text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border transition-all ${
+                              isP2Winner 
+                                ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.1)]" 
+                                : duel.pilot2.status === "completed" 
+                                ? "bg-green-500/10 border-green-500/20 text-green-500"
+                                : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                            }`}>
+                              {duel.pilot2.pilotNumber}
+                            </span>
 
-                          <div className="flex flex-col items-start min-w-0">
-                            <span className="font-bold text-[10px] sm:text-xs md:text-sm text-white truncate w-full flex items-center gap-1 justify-start">
-                              <span className="truncate">{duel.pilot2.pilotName}</span>
-                              {isP2Winner && <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-500 shrink-0 animate-bounce" />}
-                            </span>
-                            <span className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 truncate w-full font-mono">
-                              {duel.pilot2.pilotBike}
-                            </span>
-                            {duel.pilot2.time && (
-                              <span className={`font-mono text-[8px] sm:text-[9px] md:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded mt-1 sm:mt-1.5 ${
-                                isP2Winner 
-                                  ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                                  : 'bg-white/5 text-gray-400 border border-white/5'
-                              }`}>
-                                {duel.pilot2.time}
+                            <div className="flex flex-col items-start min-w-0">
+                              <span className="font-bold text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm text-white truncate w-full flex items-center gap-1 justify-start">
+                                <span className="truncate">{duel.pilot2.pilotName}</span>
+                                {isP2Winner && <Trophy className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 text-yellow-500 shrink-0 animate-bounce" />}
                               </span>
-                            )}
+                              <span className="text-[7px] min-[380px]:text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 truncate w-full font-mono">
+                                {duel.pilot2.pilotBike}
+                              </span>
+                              {duel.pilot2.time && (
+                                <span className={`font-mono text-[7px] min-[380px]:text-[8px] sm:text-[9px] md:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded mt-1 ${
+                                  isP2Winner 
+                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                    : 'bg-white/5 text-gray-400 border border-white/5'
+                                }`}>
+                                  {duel.pilot2.time}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-1 min-[380px]:gap-2 sm:gap-3 justify-start text-left min-w-0 opacity-50">
+                            {/* Number Badge */}
+                            <span className="w-6 h-6 min-[380px]:w-7 min-[380px]:h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-md min-[380px]:rounded-lg sm:rounded-xl flex items-center justify-center text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border border-dashed border-white/10 bg-white/[0.02] text-gray-600">
+                              --
+                            </span>
+
+                            <div className="flex flex-col items-start min-w-0">
+                              <span className="font-bold text-[9px] min-[380px]:text-[10px] sm:text-xs md:text-sm text-gray-500 italic truncate w-full">
+                                Seul en piste
+                              </span>
+                              <span className="text-[7px] min-[380px]:text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 truncate w-full font-mono">
+                                Pas d'adversaire
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
                       </div>
 
                       {/* Card Footer (Confrontation status information) */}
                       {isCompleted && (
-                        <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-gray-500">
+                        <div className="mt-2.5 pt-2 border-t border-white/5 flex justify-between items-center text-[9px] sm:text-[10px] font-mono text-gray-500">
                           <span>Matchup Direct</span>
-                          {winnerName ? (
-                            <span className="text-gray-300">
-                              Vainqueur : <strong className="text-yellow-500 font-bold uppercase">{winnerName}</strong>
-                            </span>
+                          {duel.pilot2 ? (
+                            winnerName ? (
+                              <span className="text-gray-300">
+                                Vainqueur : <strong className="text-yellow-500 font-bold uppercase">{winnerName}</strong>
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">Égalité</span>
+                            )
                           ) : (
-                            <span className="text-gray-400">Égalité</span>
+                            <span className="text-green-400">Run validé</span>
                           )}
                         </div>
                       )}
                       
                       {isLive && (
-                        <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-red-400 animate-pulse">
+                        <div className="mt-2.5 pt-2 border-t border-white/5 flex justify-between items-center text-[9px] sm:text-[10px] font-mono text-red-400 animate-pulse">
                           <span>Direct Live</span>
-                          <span className="font-bold uppercase flex items-center gap-1">
+                          <span className="font-bold uppercase flex items-center gap-1 text-[8px] sm:text-[9px]">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
                             Confrontation en cours
                           </span>
@@ -1240,9 +1272,9 @@ export default function LiveRace() {
                       )}
 
                       {!isCompleted && !isLive && (
-                        <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-amber-500">
-                          <span></span>
-                          <span className="font-semibold uppercase">En attente</span>
+                        <div className="mt-2.5 pt-2 border-t border-white/5 flex justify-between items-center text-[9px] sm:text-[10px] font-mono text-amber-500">
+                          <span>Confrontation</span>
+                          <span className="font-semibold uppercase text-[8px] sm:text-[9px]">En attente</span>
                         </div>
                       )}
                     </div>
