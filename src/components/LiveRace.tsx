@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Trophy, RefreshCw, Zap, Database } from "lucide-react";
+import { Trophy, RefreshCw, Zap, Database, Clock, Radio, Activity, CheckCircle2, Timer, ListCollapse } from "lucide-react";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { raceDb, isRaceManagerConfigured } from "../firebase-race-manager";
 import raceConfig from "../race-manager-config.json";
@@ -41,6 +41,21 @@ function formatTime(sec: number | string | undefined | null): string {
   return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
 }
 
+function formatScheduledTime(scheduledTime: any): string {
+  if (!scheduledTime) return "--:--";
+  let date: Date;
+  if (typeof scheduledTime.toDate === "function") {
+    date = scheduledTime.toDate();
+  } else if (scheduledTime.seconds !== undefined) {
+    date = new Date(scheduledTime.seconds * 1000);
+  } else if (typeof scheduledTime === "string" || typeof scheduledTime === "number") {
+    date = new Date(scheduledTime);
+  } else {
+    return "--:--";
+  }
+  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 interface ItemRanking {
   id: string;
   name: string;
@@ -56,6 +71,91 @@ interface ItemRanking {
   chronos?: string[];
   bestLapNumeric?: number | null;
 }
+
+interface ItemPassage {
+  id: string;
+  pilotId: string;
+  pilotName: string;
+  pilotNumber: string;
+  pilotBike: string;
+  category: string;
+  passageNumber: number;
+  scheduledTime: any;
+  status: "completed" | "scheduled";
+  time?: number | string | null;
+  timeNumeric?: number | null;
+}
+
+interface ItemDuel {
+  id: string;
+  scheduledTime: any;
+  category: string;
+  passageNumber: number;
+  pilot1: ItemPassage;
+  pilot2: ItemPassage;
+  status: "completed" | "scheduled" | "live";
+}
+
+const DEMO_PASSAGES: ItemPassage[] = [
+  {
+    id: "dp-1",
+    pilotId: "r1",
+    pilotName: "Dino Petit",
+    pilotNumber: "99",
+    pilotBike: "KTM 450 SX-F",
+    category: "MX1 Pro",
+    passageNumber: 3,
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) + 1200 },
+    status: "scheduled"
+  },
+  {
+    id: "dp-2",
+    pilotId: "r2",
+    pilotName: "Marc Petit",
+    pilotNumber: "12",
+    pilotBike: "Yamaha YZ450F",
+    category: "MX1 Pro",
+    passageNumber: 3,
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) + 600 },
+    status: "scheduled"
+  },
+  {
+    id: "dp-3",
+    pilotId: "r3",
+    pilotName: "Dany R.",
+    pilotNumber: "27",
+    pilotBike: "Husqvarna FC 350",
+    category: "MX2",
+    passageNumber: 2,
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 300 },
+    status: "completed",
+    time: "1:44.020"
+  },
+  {
+    id: "dp-4",
+    pilotId: "r4",
+    pilotName: "Rado Harif",
+    pilotNumber: "77",
+    pilotBike: "Honda CRF450R",
+    category: "MX1 Pro",
+    passageNumber: 2,
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 900 },
+    status: "completed",
+    time: "1:44.290"
+  },
+  {
+    id: "dp-5",
+    pilotId: "r5",
+    pilotName: "Nico Petit",
+    pilotNumber: "4",
+    pilotBike: "GasGas MC 250F",
+    category: "MX2",
+    passageNumber: 1,
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 1800 },
+    status: "completed",
+    time: "1:46.100"
+  }
+];
 
 interface PartnerSponsor {
   id: string;
@@ -84,11 +184,112 @@ const DEMO_PARTNERS: PartnerSponsor[] = [
   { id: "dp6", name: "Michelin", logo: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=300&auto=format&fit=crop", type: "Partenaire" }
 ];
 
+const DEMO_DUELS: ItemDuel[] = [
+  {
+    id: "dd-0",
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 1800 },
+    category: "MX2",
+    passageNumber: 1,
+    pilot1: {
+      id: "dp-5",
+      pilotId: "r5",
+      pilotName: "Nico Petit",
+      pilotNumber: "4",
+      pilotBike: "GasGas MC 250F",
+      category: "MX2",
+      passageNumber: 1,
+      scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 1800 },
+      status: "completed",
+      time: "1:46.100",
+      timeNumeric: 106.100
+    },
+    pilot2: {
+      id: "dp-6",
+      pilotId: "r6",
+      pilotName: "Yanis P.",
+      pilotNumber: "42",
+      pilotBike: "KTM 250 SX-F",
+      category: "MX2",
+      passageNumber: 1,
+      scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 1800 },
+      status: "completed",
+      time: "1:48.250",
+      timeNumeric: 108.250
+    },
+    status: "completed"
+  },
+  {
+    id: "dd-2",
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 300 },
+    category: "MX2",
+    passageNumber: 2,
+    pilot1: {
+      id: "dp-3",
+      pilotId: "r3",
+      pilotName: "Dany R.",
+      pilotNumber: "27",
+      pilotBike: "Husqvarna FC 350",
+      category: "MX2",
+      passageNumber: 2,
+      scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 300 },
+      status: "completed",
+      time: "1:44.020",
+      timeNumeric: 104.020
+    },
+    pilot2: {
+      id: "dp-4",
+      pilotId: "r4",
+      pilotName: "Julien M.",
+      pilotNumber: "88",
+      pilotBike: "Yamaha YZ250F",
+      category: "MX2",
+      passageNumber: 2,
+      scheduledTime: { seconds: Math.floor(Date.now() / 1000) - 300 },
+      status: "completed",
+      time: "1:45.320",
+      timeNumeric: 105.320
+    },
+    status: "completed"
+  },
+  {
+    id: "dd-1",
+    scheduledTime: { seconds: Math.floor(Date.now() / 1000) + 1200 },
+    category: "MX1 Pro",
+    passageNumber: 3,
+    pilot1: {
+      id: "dp-1",
+      pilotId: "r1",
+      pilotName: "Dino Petit",
+      pilotNumber: "99",
+      pilotBike: "KTM 450 SX-F",
+      category: "MX1 Pro",
+      passageNumber: 3,
+      scheduledTime: { seconds: Math.floor(Date.now() / 1000) + 1200 },
+      status: "scheduled"
+    },
+    pilot2: {
+      id: "dp-2",
+      pilotId: "r2",
+      pilotName: "Marc Petit",
+      pilotNumber: "12",
+      pilotBike: "Yamaha YZ450F",
+      category: "MX1 Pro",
+      passageNumber: 3,
+      scheduledTime: { seconds: Math.floor(Date.now() / 1000) + 600 },
+      status: "scheduled"
+    },
+    status: "scheduled"
+  }
+];
+
 export default function LiveRace() {
   const isConfigured = isRaceManagerConfigured();
   
   const [activeCategory, setActiveCategory] = useState<string>("Tous");
   const [rankings, setRankings] = useState<ItemRanking[]>([]);
+  const [passages, setPassages] = useState<ItemPassage[]>([]);
+  const [duels, setDuels] = useState<ItemDuel[]>([]);
+  const [timelineFilter, setTimelineFilter] = useState<"all" | "completed" | "scheduled">("all");
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isEmptyCollection, setIsEmptyCollection] = useState(false);
@@ -100,6 +301,8 @@ export default function LiveRace() {
   useEffect(() => {
     if (!isConfigured || !raceDb) {
       setRankings(DEMO_RANKINGS);
+      setPassages(DEMO_PASSAGES);
+      setDuels(DEMO_DUELS);
       setIsUsingDemo(true);
       setConnectionError(null);
       setIsEmptyCollection(false);
@@ -119,6 +322,7 @@ export default function LiveRace() {
       const combineData = (rawPilots: any[], rawRaces: any[]) => {
         if (rawPilots.length === 0) {
           setRankings(DEMO_RANKINGS);
+          setPassages(DEMO_PASSAGES);
           setIsUsingDemo(true);
           setIsEmptyCollection(true);
           setLoading(false);
@@ -135,6 +339,7 @@ export default function LiveRace() {
           racesByPilot[run.pilotId].push(run);
         });
 
+        // 1. Compute rankings
         const list = rawPilots.map((pilotDoc) => {
           const pilotId = pilotDoc.id;
           const pilotRuns = racesByPilot[pilotId] || [];
@@ -198,7 +403,90 @@ export default function LiveRace() {
           } as ItemRanking;
         });
 
+        // 2. Compute passages (Timeline)
+        const pilotsById: { [id: string]: any } = {};
+        rawPilots.forEach(p => {
+          pilotsById[p.id] = p;
+        });
+
+        const getSeconds = (st: any) => {
+          if (!st) return 0;
+          if (st.seconds !== undefined) return st.seconds;
+          if (typeof st === "number") return st / 1000;
+          if (typeof st === "string") return new Date(st).getTime() / 1000;
+          return 0;
+        };
+
+        const mappedPassages = rawRaces.map((run: any) => {
+          const pilot = pilotsById[run.pilotId] || {};
+          const numericTime = typeof run.time === "number" ? run.time : (run.time ? parseFloat(run.time) : null);
+          return {
+            id: run.id,
+            pilotId: run.pilotId,
+            pilotName: pilot.name || "Pilote Inconnu",
+            pilotNumber: pilot.number || pilot.num || "N/A",
+            pilotBike: pilot.motorcycle || pilot.bike || pilot.moto || "N/A",
+            category: shortenCategory(run.category || pilot.category || "Non-classé"),
+            passageNumber: run.passageNumber || 1,
+            scheduledTime: run.scheduledTime,
+            status: run.status || "scheduled",
+            time: run.time !== undefined && run.time !== null ? formatTime(run.time) : null,
+            timeNumeric: numericTime && !isNaN(numericTime) ? numericTime : null
+          } as ItemPassage;
+        });
+
+        // Compute duels (C'est qui VS qui)
+        const duelsMap: { [seconds: number]: ItemPassage[] } = {};
+        mappedPassages.forEach(passage => {
+          const secs = getSeconds(passage.scheduledTime);
+          if (!secs) return;
+          if (!duelsMap[secs]) {
+            duelsMap[secs] = [];
+          }
+          duelsMap[secs].push(passage);
+        });
+
+        const calculatedDuels: ItemDuel[] = [];
+        Object.entries(duelsMap).forEach(([secsStr, list]) => {
+          if (list.length >= 2) {
+            const p1 = list[0];
+            const p2 = list[1];
+            
+            let duelStatus: "completed" | "scheduled" | "live" = "scheduled";
+            if (p1.status === "completed" && p2.status === "completed") {
+              duelStatus = "completed";
+            } else if (p1.status === "completed" || p2.status === "completed") {
+              duelStatus = "live";
+            }
+
+            calculatedDuels.push({
+              id: secsStr,
+              scheduledTime: p1.scheduledTime,
+              category: p1.category || p2.category,
+              passageNumber: p1.passageNumber,
+              pilot1: p1,
+              pilot2: p2,
+              status: duelStatus
+            });
+          }
+        });
+
+        // Sort duels: passageNumber ascending (Manche 1, then Manche 2, then Manche 3)
+        const sortedDuels = calculatedDuels.sort((a, b) => {
+          if (a.passageNumber !== b.passageNumber) {
+            return a.passageNumber - b.passageNumber;
+          }
+          return getSeconds(a.scheduledTime) - getSeconds(b.scheduledTime);
+        });
+
+        // Sort passages: scheduledTime descending (most recent first)
+        const sortedPassages = [...mappedPassages].sort((a, b) => {
+          return getSeconds(b.scheduledTime) - getSeconds(a.scheduledTime);
+        });
+
         setRankings(listWithPositions);
+        setPassages(sortedPassages);
+        setDuels(sortedDuels);
         setIsUsingDemo(false);
         setIsEmptyCollection(false);
         setLoading(false);
@@ -216,6 +504,8 @@ export default function LiveRace() {
         console.warn("Could not load real-time 'pilots'. Using demo standby.", error);
         setConnectionError(error?.message || String(error));
         setRankings(DEMO_RANKINGS);
+        setPassages(DEMO_PASSAGES);
+        setDuels(DEMO_DUELS);
         setIsUsingDemo(true);
         setLoading(false);
       });
@@ -285,6 +575,18 @@ export default function LiveRace() {
 
   const sponsors = partnersList.filter(p => p.type === "Sponsor");
   const partnersOnly = partnersList.filter(p => !p.type || p.type === "Partenaire");
+
+  // Compute filtered passages for the real-time timeline
+  const filteredPassages = passages.filter(p => {
+    // Status filter
+    if (timelineFilter === "completed" && p.status !== "completed") return false;
+    if (timelineFilter === "scheduled" && p.status !== "scheduled") return false;
+    
+    // Category filter (synchronized with activeCategory)
+    if (activeCategory !== "Tous" && p.category !== activeCategory) return false;
+    
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-[#050505] text-white pt-24 pb-16">
@@ -485,7 +787,7 @@ export default function LiveRace() {
           </div>
         )}
 
-        {/* Classement Live */}
+        {/* Classement Live (Full Width) */}
         <div className="bg-white/5 border border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div className="flex items-center gap-3">
@@ -752,6 +1054,202 @@ export default function LiveRace() {
 
             </div>
           )}
+        </div>
+
+
+
+        {/* DUELS (C'est qui VS qui) Section */}
+        <div className="mt-8 bg-white/5 border border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Zap className="w-5 h-5 text-red-500 animate-pulse" />
+              <div>
+                <h3 className="font-display text-xl uppercase tracking-wider text-white">Face-à-Face</h3>
+                <p className="text-xs text-gray-400 font-mono uppercase mt-0.5">C'est qui VS qui ?</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 font-mono text-[10px] bg-black/40 border border-white/5 px-3 py-1.5 rounded-xl text-gray-400">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              <span>{duels.filter(d => activeCategory === "Tous" || d.category === activeCategory).length} Duel(s)</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400 leading-relaxed mb-6 -mt-2">
+            Affichage en temps réel des confrontations directes programmées pour chaque série de départs de l'événement.
+          </p>
+
+          <div className="space-y-4">
+            {duels.filter(d => activeCategory === "Tous" || d.category === activeCategory).length === 0 ? (
+              <div className="py-16 text-center text-gray-500 border border-dashed border-white/5 rounded-2xl">
+                <p className="text-xs">Aucun duel en face-à-face à afficher.</p>
+                {activeCategory !== "Tous" && (
+                  <p className="text-[10px] text-gray-600 mt-1">Filtre actif : {activeCategory}</p>
+                )}
+              </div>
+            ) : (
+              duels
+                .filter(d => activeCategory === "Tous" || d.category === activeCategory)
+                .map((duel) => {
+                  const isCompleted = duel.status === "completed";
+                  const isLive = duel.status === "live";
+                  
+                  // Compare times to find the winner
+                  const t1 = duel.pilot1.timeNumeric;
+                  const t2 = duel.pilot2.timeNumeric;
+                  const hasWinner = isCompleted && t1 !== null && t2 !== null;
+                  const isP1Winner = hasWinner && t1! < t2!;
+                  const isP2Winner = hasWinner && t2! < t1!;
+                  const winnerName = isP1Winner ? duel.pilot1.pilotName : isP2Winner ? duel.pilot2.pilotName : null;
+
+                  return (
+                    <div 
+                      key={duel.id} 
+                      className={`bg-black/45 border rounded-2xl p-4 flex flex-col hover:bg-white/[0.03] transition-all duration-300 ${
+                        isCompleted && winnerName
+                          ? "border-yellow-500/10 hover:border-yellow-500/20"
+                          : "border-white/5 hover:border-red-500/20"
+                      }`}
+                    >
+                      {/* Card Header (Metadata & Status) */}
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2.5 mb-3 font-mono text-[10px] text-gray-400 uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-red-500" />
+                          <span className="font-bold text-white">{formatScheduledTime(duel.scheduledTime)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="bg-white/5 px-2 py-0.5 rounded text-gray-400 border border-white/5">
+                            Manche {duel.passageNumber}
+                          </span>
+                          <span className="bg-red-500/10 px-2 py-0.5 rounded text-red-400 border border-red-500/10 font-bold">
+                            {duel.category}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Matchup Body: Grid (1fr auto 1fr) for perfect horizontal balancing on all screens */}
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-3 md:gap-4">
+                        
+                        {/* Pilot 1 */}
+                        <div className={`flex items-center gap-1.5 sm:gap-3 justify-end text-right min-w-0 transition-opacity ${
+                          isCompleted && isP2Winner ? 'opacity-40' : 'opacity-100'
+                        }`}>
+                          <div className="flex flex-col items-end min-w-0">
+                            <span className="font-bold text-[10px] sm:text-xs md:text-sm text-white truncate w-full flex items-center gap-1 justify-end">
+                              {isP1Winner && <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-500 shrink-0 animate-bounce" />}
+                              <span className="truncate">{duel.pilot1.pilotName}</span>
+                            </span>
+                            <span className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 truncate w-full font-mono">
+                              {duel.pilot1.pilotBike}
+                            </span>
+                            {duel.pilot1.time && (
+                              <span className={`font-mono text-[8px] sm:text-[9px] md:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded mt-1 sm:mt-1.5 ${
+                                isP1Winner 
+                                  ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                  : 'bg-white/5 text-gray-400 border border-white/5'
+                              }`}>
+                                {duel.pilot1.time}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Number Badge */}
+                          <span className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border transition-all ${
+                            isP1Winner 
+                              ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.1)]" 
+                              : duel.pilot1.status === "completed" 
+                              ? "bg-green-500/10 border-green-500/20 text-green-500"
+                              : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                          }`}>
+                            {duel.pilot1.pilotNumber}
+                          </span>
+                        </div>
+
+                        {/* VS Bubble */}
+                        <div className="flex flex-col items-center justify-center shrink-0">
+                          <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] md:text-xs font-black uppercase tracking-wider font-mono shadow-md border ${
+                            isCompleted
+                              ? "bg-white/5 text-gray-500 border-white/5"
+                              : isLive
+                              ? "bg-red-600 text-white animate-pulse border-red-500 shadow-[0_0_12px_rgba(220,38,38,0.3)]"
+                              : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                          }`}>
+                            VS
+                          </div>
+                        </div>
+
+                        {/* Pilot 2 */}
+                        <div className={`flex items-center gap-1.5 sm:gap-3 justify-start text-left min-w-0 transition-opacity ${
+                          isCompleted && isP1Winner ? 'opacity-40' : 'opacity-100'
+                        }`}>
+                          {/* Number Badge */}
+                          <span className={`w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-mono font-bold shrink-0 border transition-all ${
+                            isP2Winner 
+                              ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.1)]" 
+                              : duel.pilot2.status === "completed" 
+                              ? "bg-green-500/10 border-green-500/20 text-green-500"
+                              : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                          }`}>
+                            {duel.pilot2.pilotNumber}
+                          </span>
+
+                          <div className="flex flex-col items-start min-w-0">
+                            <span className="font-bold text-[10px] sm:text-xs md:text-sm text-white truncate w-full flex items-center gap-1 justify-start">
+                              <span className="truncate">{duel.pilot2.pilotName}</span>
+                              {isP2Winner && <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-500 shrink-0 animate-bounce" />}
+                            </span>
+                            <span className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 truncate w-full font-mono">
+                              {duel.pilot2.pilotBike}
+                            </span>
+                            {duel.pilot2.time && (
+                              <span className={`font-mono text-[8px] sm:text-[9px] md:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded mt-1 sm:mt-1.5 ${
+                                isP2Winner 
+                                  ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                  : 'bg-white/5 text-gray-400 border border-white/5'
+                              }`}>
+                                {duel.pilot2.time}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Card Footer (Confrontation status information) */}
+                      {isCompleted && (
+                        <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-gray-500">
+                          <span>Matchup Direct</span>
+                          {winnerName ? (
+                            <span className="text-gray-300">
+                              Vainqueur : <strong className="text-yellow-500 font-bold uppercase">{winnerName}</strong>
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">Égalité</span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {isLive && (
+                        <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-red-400 animate-pulse">
+                          <span>Direct Live</span>
+                          <span className="font-bold uppercase flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                            Confrontation en cours
+                          </span>
+                        </div>
+                      )}
+
+                      {!isCompleted && !isLive && (
+                        <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-amber-500">
+                          <span></span>
+                          <span className="font-semibold uppercase">En attente</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+            )}
+          </div>
         </div>
 
         {/* PARTENAIRES Section at the bottom (Brute Logos without boxes/frames) */}
