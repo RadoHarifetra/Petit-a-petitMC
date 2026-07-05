@@ -70,6 +70,7 @@ interface ItemRanking {
   status?: "active" | "pit" | "out";
   chronos?: string[];
   bestLapNumeric?: number | null;
+  bestSingleLap?: string;
 }
 
 interface ItemPassage {
@@ -352,15 +353,22 @@ export default function LiveRace() {
           // Extract formatted chronos (laps), e.g. ["9.123s", "10.050s"]
           const chronosFormatted = completedRuns.map(run => formatTime(run.time));
           
-          // Find best time
-          const bestTimeVal = completedRuns.length > 0 
-            ? Math.min(...completedRuns.map(run => {
-                const t = typeof run.time === "number" ? run.time : parseFloat(run.time);
-                return isNaN(t) ? Infinity : t;
-              }).filter(t => t !== Infinity))
+          // Calculate cumulative time (sum of all completed passages)
+          const validRuns = completedRuns.map(run => {
+            const t = typeof run.time === "number" ? run.time : parseFloat(run.time);
+            return isNaN(t) ? null : t;
+          }).filter(t => t !== null) as number[];
+
+          const totalTimeVal = validRuns.length > 0 
+            ? validRuns.reduce((acc, curr) => acc + curr, 0)
             : null;
 
-          const bestLapStr = bestTimeVal !== null && bestTimeVal !== Infinity ? formatTime(bestTimeVal) : "--:--";
+          const bestSingleLapVal = validRuns.length > 0
+            ? Math.min(...validRuns)
+            : null;
+
+          const totalTimeStr = totalTimeVal !== null ? formatTime(totalTimeVal) : "--:--";
+          const bestSingleLapStr = bestSingleLapVal !== null ? formatTime(bestSingleLapVal) : "--:--";
 
           const bikeModel = pilotDoc.motorcycle || pilotDoc.bike || pilotDoc.moto || "N/A";
 
@@ -370,8 +378,9 @@ export default function LiveRace() {
             number: pilotDoc.number || pilotDoc.num || "N/A",
             bike: bikeModel,
             category: shortenCategory(pilotDoc.category || pilotDoc.classe || "Non-classé"),
-            bestLap: bestLapStr,
-            bestLapNumeric: bestTimeVal === Infinity ? null : bestTimeVal,
+            bestLap: totalTimeStr, // bestLap now holds the cumulative time for display
+            bestLapNumeric: totalTimeVal,
+            bestSingleLap: bestSingleLapStr,
             totalLaps: completedRuns.length,
             status: completedRuns.length > 0 ? "active" : "pit",
             chronos: chronosFormatted,
@@ -379,8 +388,13 @@ export default function LiveRace() {
           } as ItemRanking;
         });
 
-        // SORT BY BEST TIME (lower is better, pilots with no time go to the bottom)
+        // SORT BY CUMULATIVE TIME
+        // 1. First by number of laps descending (who completed the most runs)
+        // 2. Then by total cumulative time ascending
         const sortedList = list.sort((a, b) => {
+          if (a.totalLaps !== b.totalLaps) {
+            return b.totalLaps - a.totalLaps;
+          }
           if (a.bestLapNumeric === null && b.bestLapNumeric === null) return 0;
           if (a.bestLapNumeric === null) return 1;
           if (b.bestLapNumeric === null) return -1;
@@ -394,7 +408,7 @@ export default function LiveRace() {
             gapStr = item.bestLapNumeric !== null ? "Leader" : "--";
           } else if (item.bestLapNumeric !== null && sortedList[0].bestLapNumeric !== null) {
             const diff = item.bestLapNumeric - sortedList[0].bestLapNumeric;
-            gapStr = `+${diff.toFixed(3)}s`;
+            gapStr = diff >= 0 ? `+${diff.toFixed(3)}s` : `${diff.toFixed(3)}s`;
           }
           return {
             ...item,
@@ -840,7 +854,7 @@ export default function LiveRace() {
                       <th className="pb-4 font-normal">Pilote</th>
                       <th className="pb-4 font-normal">Moto</th>
                       <th className="pb-4 font-normal">Catégorie</th>
-                      <th className="pb-4 font-normal text-right">Chrono</th>
+                      <th className="pb-4 font-normal text-right">Cumul</th>
                       <th className="pb-4 font-normal text-right">Écart</th>
                     </tr>
                   </thead>
@@ -920,7 +934,7 @@ export default function LiveRace() {
                                   {item.chronos && item.chronos.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
                                       {item.chronos.map((chrono, idx) => {
-                                        const isBest = chrono === item.bestLap;
+                                        const isBest = item.bestSingleLap ? chrono === item.bestSingleLap : chrono === item.bestLap;
                                         return (
                                           <div 
                                             key={idx} 
@@ -1032,7 +1046,7 @@ export default function LiveRace() {
                           {item.chronos && item.chronos.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                               {item.chronos.map((chrono, idx) => {
-                                const isBest = chrono === item.bestLap;
+                                const isBest = item.bestSingleLap ? chrono === item.bestSingleLap : chrono === item.bestLap;
                                 return (
                                   <div 
                                     key={idx} 
