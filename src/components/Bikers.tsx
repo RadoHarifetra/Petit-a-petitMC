@@ -5,6 +5,14 @@ import { db } from "../firebase";
 import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
+function optimizeImageUrl(url: string, width = 400) {
+  if (!url) return "";
+  if (url.includes("cloudinary.com") && url.includes("/upload/")) {
+    return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width},c_scale/`);
+  }
+  return url;
+}
+
 export default function Bikers() {
   const [isMobile, setIsMobile] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
@@ -81,7 +89,7 @@ export default function Bikers() {
                 viewport={{ once: true, margin: "100px" }}
                 className="group relative"
               >
-                <div className="aspect-[3/4] overflow-hidden rounded-2xl mb-6 relative">
+                <div className="aspect-[3/4] overflow-hidden rounded-2xl mb-6 relative bg-zinc-950 animate-pulse">
                   <motion.img
                     variants={{
                       hidden: { filter: isMobile ? "grayscale(0%)" : "grayscale(100%)", scale: 1 },
@@ -89,7 +97,7 @@ export default function Bikers() {
                       hover: { filter: "grayscale(0%)", scale: 1.1 }
                     }}
                     transition={{ duration: 0.8 }}
-                    src={member.image}
+                    src={optimizeImageUrl(member.image, 400)}
                     alt={member.name}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"

@@ -1508,7 +1508,7 @@ export default function AdminDashboard() {
                           <h4 className="font-bold text-lg">
                             {activeTab === 'treasury' 
                               ? (item.type === 'Cotisation' ? `Cotisation - ${item.memberName || 'Inconnu'}` : (item.description || 'Transaction'))
-                              : String(item.name || item.memberName || item.respondentName || item.title || item.label || 'Sans nom')
+                              : String(item.pseudo || item.pilotName || item.name || item.memberName || item.respondentName || item.title || item.label || 'Sans nom')
                             }
                           </h4>
                           {(!item.status || item.status === 'new') && (activeTab === 'registrations' || activeTab === 'orders' || activeTab === 'surveys') && (

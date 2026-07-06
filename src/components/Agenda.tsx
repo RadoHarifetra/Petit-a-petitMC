@@ -7,6 +7,14 @@ import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
 import { X, Check } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 
+function optimizeImageUrl(url: string, width = 600) {
+  if (!url) return "";
+  if (url.includes("cloudinary.com") && url.includes("/upload/")) {
+    return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width},c_scale/`);
+  }
+  return url;
+}
+
 function Countdown({ targetDate }: { targetDate: string }) {
   const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
 
@@ -194,11 +202,14 @@ export default function Agenda() {
                 viewport={{ once: true }}
                 className="group relative flex flex-col h-full"
               >
-                <div className="relative aspect-[3/4] overflow-hidden mb-6 brutal-border">
+                <div className="relative aspect-[3/4] overflow-hidden mb-6 brutal-border bg-zinc-950 animate-pulse">
                   <motion.img
                     whileHover={{ scale: 1.05 }}
+                    initial={isMobile ? { filter: "grayscale(100%)" } : {}}
+                    whileInView={isMobile ? { filter: "grayscale(0%)" } : {}}
+                    viewport={{ once: false, amount: 0.4 }}
                     transition={{ duration: 0.6 }}
-                    src={event.image}
+                    src={optimizeImageUrl(event.image, 600)}
                     alt={event.title}
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
                     referrerPolicy="no-referrer"
