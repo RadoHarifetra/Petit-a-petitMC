@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../firebase";
 import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
-import { Calendar, MapPin, ArrowRight, Bike } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Bike, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -218,6 +218,31 @@ export default function Home() {
                     <h3 className="card-title text-2xl group-hover:text-red-500 transition-colors mb-2">
                       {pilot.pseudo}
                     </h3>
+
+                    {/* Achievements / Palmarès */}
+                    {(pilot.titlesGold || pilot.titlesSilver || pilot.titlesBronze) ? (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {pilot.titlesGold && Number(pilot.titlesGold) > 0 && (
+                          <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-tight">
+                            <Trophy className="w-3 h-3 text-yellow-500" />
+                            <span>Or : {pilot.titlesGold}</span>
+                          </div>
+                        )}
+                        {pilot.titlesSilver && Number(pilot.titlesSilver) > 0 && (
+                          <div className="flex items-center gap-1.5 bg-zinc-300/10 border border-zinc-300/30 text-zinc-300 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-tight">
+                            <Trophy className="w-3 h-3 text-zinc-300" />
+                            <span>Argent : {pilot.titlesSilver}</span>
+                          </div>
+                        )}
+                        {pilot.titlesBronze && Number(pilot.titlesBronze) > 0 && (
+                          <div className="flex items-center gap-1.5 bg-amber-600/10 border border-amber-600/30 text-amber-600 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-tight">
+                            <Trophy className="w-3 h-3 text-amber-600" />
+                            <span>Bronze : {pilot.titlesBronze}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
                     <div className="mt-auto flex items-center gap-2 text-zinc-400 text-sm font-sans border-t border-white/5 pt-4">
                       <span className="p-1 px-2 border border-white/10 rounded-md bg-white/5 font-mono text-[10px] uppercase text-zinc-400">Moto</span>
                       <span className="font-semibold text-zinc-200">{pilot.bike}</span>

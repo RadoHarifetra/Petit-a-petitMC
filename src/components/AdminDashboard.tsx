@@ -231,7 +231,10 @@ const configs: EntityConfig[] = [
       { name: 'bike', label: 'Moto', type: 'text' },
       { name: 'category', label: 'Catégorie', type: 'text' },
       { name: 'number', label: 'Numéro (course)', type: 'text' },
-      { name: 'image', label: 'Photo', type: 'image' }
+      { name: 'image', label: 'Photo', type: 'image' },
+      { name: 'titlesGold', label: 'Titres d\'Or (1er)', type: 'number' },
+      { name: 'titlesSilver', label: 'Titres d\'Argent (2e)', type: 'number' },
+      { name: 'titlesBronze', label: 'Titres de Bronze (3e)', type: 'number' }
     ]
   },
   {
@@ -1630,6 +1633,25 @@ export default function AdminDashboard() {
                             <p className="text-sm text-gray-400">
                               Moto: <span className="text-white font-medium">{item.bike}</span>
                             </p>
+                            {(item.titlesGold || item.titlesSilver || item.titlesBronze) ? (
+                              <div className="flex items-center gap-2 mt-2">
+                                {item.titlesGold && Number(item.titlesGold) > 0 && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-[10px] text-yellow-500 font-mono font-bold">
+                                    🏆 Or: {item.titlesGold}
+                                  </span>
+                                )}
+                                {item.titlesSilver && Number(item.titlesSilver) > 0 && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-zinc-300/10 border border-zinc-300/20 text-[10px] text-zinc-300 font-mono font-bold">
+                                    🏆 Arg: {item.titlesSilver}
+                                  </span>
+                                )}
+                                {item.titlesBronze && Number(item.titlesBronze) > 0 && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-amber-600/10 border border-amber-600/20 text-[10px] text-amber-600 font-mono font-bold">
+                                    🏆 Bro: {item.titlesBronze}
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         ) : activeTab === 'users' ? (
                           <div className="space-y-1">
