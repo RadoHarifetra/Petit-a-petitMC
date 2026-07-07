@@ -89,7 +89,7 @@ export default function Bikers() {
                 viewport={{ once: true, margin: "100px" }}
                 className="group relative"
               >
-                <div className="aspect-[3/4] overflow-hidden rounded-2xl mb-6 relative bg-zinc-950 animate-pulse">
+                <div className="aspect-[3/4] overflow-hidden rounded-2xl mb-6 relative bg-zinc-950">
                   <motion.img
                     variants={{
                       hidden: { filter: isMobile ? "grayscale(0%)" : "grayscale(100%)", scale: 1 },

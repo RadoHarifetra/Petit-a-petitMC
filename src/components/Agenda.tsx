@@ -194,24 +194,20 @@ export default function Agenda() {
             </div>
           ) : (
             events.map((event, index) => (
-              <motion.div
+              <div
                 key={event.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                viewport={{ once: true }}
                 className="group relative flex flex-col h-full"
               >
-                <div className="relative aspect-[3/4] overflow-hidden mb-6 brutal-border bg-zinc-950 animate-pulse">
+                <div className="relative aspect-[3/4] overflow-hidden mb-6 brutal-border bg-zinc-950">
                   <motion.img
                     whileHover={{ scale: 1.05 }}
                     initial={isMobile ? { filter: "grayscale(100%)" } : {}}
                     whileInView={isMobile ? { filter: "grayscale(0%)" } : {}}
-                    viewport={{ once: false, amount: 0.4 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.6 }}
                     src={optimizeImageUrl(event.image, 600)}
                     alt={event.title}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                    className={isMobile ? "w-full h-full object-cover" : "w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"}
                     referrerPolicy="no-referrer"
                     loading="lazy"
                   />
@@ -282,7 +278,7 @@ export default function Agenda() {
                       )}
                     </div>
                 </div>
-              </motion.div>
+              </div>
             ))
           )}
         </div>
