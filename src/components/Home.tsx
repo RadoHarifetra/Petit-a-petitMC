@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../firebase";
 import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
-import { Calendar, MapPin, ArrowRight, Bike, Trophy } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Bike, Trophy, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -221,23 +221,41 @@ export default function Home() {
 
                     {/* Achievements / Palmarès */}
                     {(pilot.titlesGold || pilot.titlesSilver || pilot.titlesBronze) ? (
-                      <div className="flex flex-wrap gap-2 mb-4">
+                      <div className="flex flex-col gap-2 mb-4">
                         {pilot.titlesGold && Number(pilot.titlesGold) > 0 && (
-                          <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-tight">
-                            <Trophy className="w-3 h-3 text-yellow-500" />
-                            <span>Or : {pilot.titlesGold}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-yellow-500 font-bold font-mono uppercase tracking-wider">
+                              Or :
+                            </span>
+                            <div className="flex gap-0.5 ml-1">
+                              {Array.from({ length: Number(pilot.titlesGold) }).map((_, i) => (
+                                <Star key={i} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
+                              ))}
+                            </div>
                           </div>
                         )}
                         {pilot.titlesSilver && Number(pilot.titlesSilver) > 0 && (
-                          <div className="flex items-center gap-1.5 bg-zinc-300/10 border border-zinc-300/30 text-zinc-300 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-tight">
-                            <Trophy className="w-3 h-3 text-zinc-300" />
-                            <span>Argent : {pilot.titlesSilver}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-zinc-400 font-bold font-mono uppercase tracking-wider">
+                              Argent :
+                            </span>
+                            <div className="flex gap-0.5 ml-1">
+                              {Array.from({ length: Number(pilot.titlesSilver) }).map((_, i) => (
+                                <Star key={i} className="w-3.5 h-3.5 fill-zinc-400 text-zinc-400" />
+                              ))}
+                            </div>
                           </div>
                         )}
                         {pilot.titlesBronze && Number(pilot.titlesBronze) > 0 && (
-                          <div className="flex items-center gap-1.5 bg-amber-600/10 border border-amber-600/30 text-amber-600 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono uppercase tracking-tight">
-                            <Trophy className="w-3 h-3 text-amber-600" />
-                            <span>Bronze : {pilot.titlesBronze}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-amber-600 font-bold font-mono uppercase tracking-wider">
+                              Bronze :
+                            </span>
+                            <div className="flex gap-0.5 ml-1">
+                              {Array.from({ length: Number(pilot.titlesBronze) }).map((_, i) => (
+                                <Star key={i} className="w-3.5 h-3.5 fill-amber-600 text-amber-600" />
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

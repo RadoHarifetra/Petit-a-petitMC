@@ -1634,21 +1634,36 @@ export default function AdminDashboard() {
                               Moto: <span className="text-white font-medium">{item.bike}</span>
                             </p>
                             {(item.titlesGold || item.titlesSilver || item.titlesBronze) ? (
-                              <div className="flex items-center gap-2 mt-2">
+                              <div className="flex flex-col gap-1 mt-2">
                                 {item.titlesGold && Number(item.titlesGold) > 0 && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-[10px] text-yellow-500 font-mono font-bold">
-                                    🏆 Or: {item.titlesGold}
-                                  </span>
+                                  <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono font-bold uppercase">
+                                    <span>Or:</span>
+                                    <div className="flex gap-0.5">
+                                      {Array.from({ length: Number(item.titlesGold) }).map((_, i) => (
+                                        <Star key={i} className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                      ))}
+                                    </div>
+                                  </div>
                                 )}
                                 {item.titlesSilver && Number(item.titlesSilver) > 0 && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-zinc-300/10 border border-zinc-300/20 text-[10px] text-zinc-300 font-mono font-bold">
-                                    🏆 Arg: {item.titlesSilver}
-                                  </span>
+                                  <div className="flex items-center gap-1 text-[10px] text-zinc-300 font-mono font-bold uppercase">
+                                    <span>Arg:</span>
+                                    <div className="flex gap-0.5">
+                                      {Array.from({ length: Number(item.titlesSilver) }).map((_, i) => (
+                                        <Star key={i} className="w-3 h-3 fill-zinc-300 text-zinc-300" />
+                                      ))}
+                                    </div>
+                                  </div>
                                 )}
                                 {item.titlesBronze && Number(item.titlesBronze) > 0 && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-amber-600/10 border border-amber-600/20 text-[10px] text-amber-600 font-mono font-bold">
-                                    🏆 Bro: {item.titlesBronze}
-                                  </span>
+                                  <div className="flex items-center gap-1 text-[10px] text-amber-600 font-mono font-bold uppercase">
+                                    <span>Bro:</span>
+                                    <div className="flex gap-0.5">
+                                      {Array.from({ length: Number(item.titlesBronze) }).map((_, i) => (
+                                        <Star key={i} className="w-3 h-3 fill-amber-600 text-amber-600" />
+                                      ))}
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             ) : null}
